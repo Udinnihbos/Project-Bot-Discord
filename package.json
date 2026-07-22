@@ -5,9 +5,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node start.js",
+    "start": "node scripts/install-ffmpeg.js && node start.js",
     "dev": "node --watch start.js",
-    "clear": "node clear-global-commands.js"
+    "clear": "node clear-global-commands.js",
+    "postinstall": "node scripts/install-ffmpeg.js",
+    "install-ffmpeg": "node scripts/install-ffmpeg.js"
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
