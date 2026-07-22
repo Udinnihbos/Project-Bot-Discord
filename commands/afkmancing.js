@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getMissionData, checkAndResetMissions, hasAfkUnlock, getZonaData } from '../utils/database.js';
 import { rollFish, rollMutation, getRarityEmoji, getRarityColor, getEquippedRod, getCooldownMs, RARITY_ORDER, getInventoryKey, getFinalPrice, rollFishWeight, formatWeight, getWeightBonus, formatNumber, formatGems } from '../utils/fishing.js';;
 import { getBaitData, getLevelData, getPlayerLevel, addXp } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('afkmancing')
@@ -24,7 +25,12 @@ const activeSessions = new Set();
 
 const ANNOUNCE_CHANNEL_ID = '1481982935413555291';
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   let player = getPlayer(userId);
 

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getFishData, getMutationData } from '../utils/database.js';
 import { formatCoins, formatNumber, formatGems, getRarityEmoji, parseInventoryKey, getFinalPrice } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('sellfish')
@@ -17,7 +18,12 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const { fish: fishList } = getFishData();

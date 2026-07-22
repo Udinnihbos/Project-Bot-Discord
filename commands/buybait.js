@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getBaitData } from '../utils/database.js';
 import { formatNumber } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('buybait')
@@ -12,7 +13,12 @@ export const data = new SlashCommandBuilder()
     opt.setName('jumlah').setDescription('Jumlah yang dibeli (default: 1)').setMinValue(1).setMaxValue(99).setRequired(false)
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const { baits } = getBaitData();

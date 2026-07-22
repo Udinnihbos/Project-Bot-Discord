@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, ChannelType } from 'discord.js';
 import { getZonaData, saveZonaData, getFishData, saveFishData, getRodData, saveRodData, getPlayer, savePlayer, getShopData, saveShopData, getSpawnConfig, saveSpawnConfig } from '../utils/database.js';
 import { getRarityEmoji, formatChance, formatNumber, formatGems } from '../utils/fishing.js';;
 import { spawnFish, startAutoInterval, stopAutoInterval } from '../utils/spawnNotifier.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('adminfishing')
@@ -181,7 +182,12 @@ export const data = new SlashCommandBuilder()
       .addStringOption(opt => opt.setName('id').setDescription('ID item yang ingin dihapus').setRequired(true).setAutocomplete(true))
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   if (interaction.user.id !== process.env.OWNER_ID) {
     return interaction.reply({
       embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Akses Ditolak').setDescription('Hanya untuk **Owner**!')],

@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getMissionData, checkAndResetMissions } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('fishmissions')
@@ -7,7 +8,12 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(sub => sub.setName('list').setDescription('Lihat semua misi harian'))
   .addSubcommand(sub => sub.setName('claim').setDescription('Klaim semua misi yang sudah selesai'));
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   let player = getPlayer(userId);
   player = checkAndResetMissions(player);

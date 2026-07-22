@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getMutationData, saveMutationData } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('adminmutation')
@@ -36,7 +37,12 @@ export const data = new SlashCommandBuilder()
       .setDescription('Lihat semua mutasi')
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   if (interaction.user.id !== process.env.OWNER_ID) {
     return interaction.reply({
       embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Akses Ditolak')],

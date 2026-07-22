@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getGamepassData, hasGamepass } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('fishgamepass')
@@ -14,7 +15,12 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub => sub.setName('mypass').setDescription('Lihat gamepass yang kamu punya'));
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const gpData = getGamepassData();

@@ -3,6 +3,7 @@ import { getPlayer, savePlayer, getMissionData, checkAndResetMissions, getBaitDa
 import { getActiveFishForZona } from '../utils/spawnNotifier.js';
 import { rollFish, rollMutation, getRarityColor, getRarityEmoji, formatChance, getCooldownRemaining, getEquippedRod, RARITY_ORDER, getInventoryKey, getFinalPrice, rollFishWeight, formatWeight, getWeightBonus, formatNumber } from '../utils/fishing.js';
 import { getCurrentWeather } from '../utils/weather.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 const ANNOUNCE_CHANNEL_ID = '1481982935413555291';
 
@@ -418,6 +419,11 @@ export const data = new SlashCommandBuilder()
   .setName('mancing')
   .setDescription('🎣 Pergi memancing dan coba keberuntunganmu!');
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   await doFishing(interaction, interaction.user.id, false);
 }

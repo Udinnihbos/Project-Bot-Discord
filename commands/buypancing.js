@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getRodData } from '../utils/database.js';
 import { formatCoins, formatNumber, formatGems } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('buypancing')
@@ -12,7 +13,12 @@ export const data = new SlashCommandBuilder()
       .setAutocomplete(true)
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const { rods } = getRodData();

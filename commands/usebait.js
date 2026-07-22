@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getBaitData } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('usebait')
@@ -8,7 +9,12 @@ export const data = new SlashCommandBuilder()
     opt.setName('umpan').setDescription('Umpan yang ingin dipakai').setRequired(true).setAutocomplete(true)
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const { baits } = getBaitData();

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getPlayer, savePlayer, getFishData } from '../utils/database.js';
 import { getRarityEmoji } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('tradefishing')
@@ -39,7 +40,12 @@ export const data = new SlashCommandBuilder()
 // Pending trades stored in memory (session only)
 const pendingTrades = new Map();
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const sub = interaction.options.getSubcommand();
   if (sub !== 'send') return;
 

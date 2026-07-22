@@ -1,12 +1,18 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, getPlayerLevel, getXpForNextLevel, getLevelData, getBaitData, getRodData } from '../utils/database.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('level')
   .setDescription('⬆️ Lihat level, XP, dan semua reward level kamu!')
   .addUserOption(opt => opt.setName('user').setDescription('Lihat level pemain lain').setRequired(false));
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const target = interaction.options.getUser('user') || interaction.user;
   const player = getPlayer(target.id);
   const { rewards, levelThresholds, xpPerRarity } = getLevelData();

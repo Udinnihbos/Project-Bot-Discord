@@ -11,6 +11,7 @@ import { handleSikmatreeSelect } from './utils/sikmatreeHandler.js';
 import { handleSikmasearch } from './utils/sikmasearchHandler.js';
 import { handleSikmaticket } from './utils/sikmaticketHandler.js';
 import { handleActivityComponent, handleActivitySelect, handleActivityModal, handleActivityMessageCreate } from './commands/activity.js';
+import { handleFishingRoleButton, handleFishingRoleSelect } from './commands/fishingrole.js';
 
 config();
 
@@ -94,6 +95,13 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) return handleActivityComponent(interaction);
     if (interaction.isModalSubmit()) return handleActivityModal(interaction);
     return handleActivitySelect(interaction);
+  }
+  // Fishing Role (admin panel for role-gating)
+  if (interaction.isButton() && interaction.customId.startsWith('fishrole_')) {
+    return handleFishingRoleButton(interaction);
+  }
+  if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('fishrole_')) {
+    return handleFishingRoleSelect(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);

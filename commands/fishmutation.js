@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getMutationData } from '../utils/database.js';
 import { MUTATION_RARITY_ORDER } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -8,7 +9,12 @@ export const data = new SlashCommandBuilder()
   .setName('fishmutation')
   .setDescription('🧬 Lihat daftar semua mutasi ikan!');
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const { mutations } = getMutationData();
   const sorted = [...mutations].sort((a, b) =>
     MUTATION_RARITY_ORDER.indexOf(a.rarity) - MUTATION_RARITY_ORDER.indexOf(b.rarity)

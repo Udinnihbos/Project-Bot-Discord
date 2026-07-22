@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getEventData, saveEventData, getActiveEvents, addActiveEvent, removeActiveEvent, clearActiveEvents } from '../utils/database.js';
 import { formatDuration, RARITY_ORDER } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('setevent')
@@ -62,7 +63,12 @@ export const data = new SlashCommandBuilder()
       .setDescription('Lihat semua event aktif')
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   if (interaction.user.id !== process.env.OWNER_ID) {
     return interaction.reply({
       embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Akses Ditolak').setDescription('Hanya untuk **Owner**!')],

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
 import { getPlayer, savePlayer, getFishData, getMutationData, getShopData } from '../utils/database.js';
 import { getRarityEmoji, RARITY_ORDER, parseInventoryKey, getFinalPrice, formatNumber } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -305,7 +306,12 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const target = interaction.options.getUser('user') || interaction.user;
   const isOwn = target.id === interaction.user.id;
   const player = getPlayer(target.id);

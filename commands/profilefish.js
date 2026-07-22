@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayer, getFishData, getPlayerLevel, getXpForNextLevel, getLevelData } from '../utils/database.js';
 import { getRarityEmoji, getRarityColor, getRarestFish, formatCoins, formatNumber, formatGems, getEquippedRod, formatChance } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('profilefish')
@@ -9,7 +10,12 @@ export const data = new SlashCommandBuilder()
     opt.setName('user').setDescription('Lihat profil pemain lain').setRequired(false)
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const target = interaction.options.getUser('user') || interaction.user;
   const player = getPlayer(target.id);
   const { fish: fishList } = getFishData();

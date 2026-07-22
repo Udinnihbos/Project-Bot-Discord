@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getPlayer, getFishData, getZonaByChannel, getZonaData } from '../utils/database.js';
 import { getRarityEmoji, getRarityColor, RARITY_ORDER, formatNumber, formatChance } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -109,7 +110,12 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const userId = interaction.user.id;
   const player = getPlayer(userId);
   const { fish: fishList } = getFishData();

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getPlayer, savePlayer, getShopData, saveShopData, getFishData, getBaitData } from '../utils/database.js';
 import { formatNumber, getRarityColor, getRarityEmoji } from '../utils/fishing.js';
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 const TYPE_LABEL = {
   bait: '🪱 Umpan',
@@ -107,7 +108,12 @@ export const data = new SlashCommandBuilder()
       .setDescription('Lihat item yang kamu punya')
   );
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const sub = interaction.options.getSubcommand();
   const { items } = getShopData();
 

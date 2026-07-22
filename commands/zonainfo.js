@@ -1,12 +1,18 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getZonaByChannel, getFishData } from '../utils/database.js';
 import { getRarityEmoji, formatChance, RARITY_ORDER, formatNumber, formatGems } from '../utils/fishing.js';;
+import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
 
 export const data = new SlashCommandBuilder()
   .setName('zonainfo')
   .setDescription('🗺️ Lihat info zona mancing di channel ini!');
 
+// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  const access = await hasFishingAccess(interaction);
+  if (!access.allowed) {
+    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+  }
   const zona = getZonaByChannel(interaction.channelId);
 
   if (!zona) {
