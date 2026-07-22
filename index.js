@@ -16,6 +16,7 @@ import { onPlayerEvent, is247, getPlayerStatus } from './music/player.js';
 import { getGuildState, patchGuildState } from './music/state.js';
 import { getMusicConfig } from './music/config.js';
 import { buildNowPlayingEmbed, buildNowPlayingRows, buildIdleEmbed } from './music/ui.js';
+import { handleMusicSettingsButton, handleMusicSettingsSelect } from './commands/musicsettings.js';
 
 config();
 
@@ -65,16 +66,33 @@ function setupMusicListeners(c) {
       if (!guild) return;
       const state = evt.state;
       const msgId = state.nowPlayingMessageId;
-      if (!msgId) return;
       const textChId = state.textChannelId;
-      if (!textChId) return;
-      const ch = await guild.channels.fetch(textChId).catch(() => null);
-      if (!ch) return;
-      const msg = await ch.messages.fetch(msgId).catch(() => null);
-      if (!msg) return;
-      const embed = buildNowPlayingEmbed(guild, evt.song, state);
-      const rows = buildNowPlayingRows(evt.guildId);
-      await msg.edit({ embeds: [embed], components: rows }).catch(() => {});
+
+      // 1) Update existing Now Playing panel (in text channel where /play was called)
+      if (msgId && textChId) {
+        const ch = await guild.channels.fetch(textChId).catch(() => null);
+        if (ch) {
+          const msg = await ch.messages.fetch(msgId).catch(() => null);
+          if (msg) {
+            const embed = buildNowPlayingEmbed(guild, evt.song, state);
+            const rows = buildNowPlayingRows(evt.guildId);
+            await msg.edit({ embeds: [embed], components: rows }).catch(() => {});
+          }
+        }
+      }
+
+      // 2) If announce channel is set, post a fresh "Now Playing" there
+      const cfg = getMusicConfig(evt.guildId);
+      if (cfg.announceChannelId && cfg.announceChannelId !== textChId) {
+        const announceCh = await guild.channels.fetch(cfg.announceChannelId).catch(() => null);
+        if (announceCh) {
+          const { buildNowPlayingEmbed: build } = await import('./music/ui.js');
+          const announceEmbed = build(guild, evt.song, state)
+            .setAuthor({ name: `${guild.name} • Now Playing`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
+            .setFooter({ text: cfg.language === 'en' ? '🎶 Music Player • New song started' : '🎶 Music Player • Lagu baru mulai' });
+          await announceCh.send({ embeds: [announceEmbed] }).catch(() => {});
+        }
+      }
     }
 
     if (evt.type === 'stopped' || evt.type === 'queueEmpty') {
@@ -188,6 +206,16 @@ client.on('interactionCreate', async interaction => {
   // Music Player (Now Playing buttons, queue paging)
   if (interaction.isButton() && interaction.customId.startsWith('music_')) {
     return handleMusicButton(interaction);
+  }
+  // Music Settings (panel, edit-in-place)
+  if (
+    (interaction.isButton() && interaction.customId.startsWith('mset_')) ||
+    (interaction.isStringSelectMenu() && interaction.customId.startsWith('mset_')) ||
+    (interaction.isChannelSelectMenu() && interaction.customId.startsWith('mset_')) ||
+    (interaction.isRoleSelectMenu() && interaction.customId.startsWith('mset_'))
+  ) {
+    if (interaction.isButton()) return handleMusicSettingsButton(interaction);
+    return handleMusicSettingsSelect(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
