@@ -10,6 +10,7 @@ import { checkSpam, checkRaid } from './utils/security.js';
 import { handleSikmatreeSelect } from './utils/sikmatreeHandler.js';
 import { handleSikmasearch } from './utils/sikmasearchHandler.js';
 import { handleSikmaticket } from './utils/sikmaticketHandler.js';
+import { handleActivityComponent, handleActivitySelect, handleActivityModal, handleActivityMessageCreate } from './commands/activity.js';
 
 config();
 
@@ -54,10 +55,11 @@ client.on('guildMemberAdd', async member => {
   try { await checkRaid(member, client); } catch (e) { console.error('Anti-raid error:', e.message); }
 });
 
-// Anti-Spam
+// Anti-Spam + Activity Tracker
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   try { await checkSpam(message); } catch (e) { console.error('Anti-spam error:', e.message); }
+  try { await handleActivityMessageCreate(message); } catch (e) { console.error('Activity tracker error:', e.message); }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -81,6 +83,17 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isButton() && interaction.customId.startsWith('rr_btn_')) {
     return handleReactionRole(interaction);
+  }
+  // Activity Tracker (settings, leaderboard paging, publish, reset)
+  if (
+    (interaction.isButton() && interaction.customId.startsWith('act_')) ||
+    (interaction.isChannelSelectMenu() && interaction.customId.startsWith('act_')) ||
+    (interaction.isStringSelectMenu() && interaction.customId.startsWith('act_')) ||
+    (interaction.isModalSubmit() && interaction.customId.startsWith('act_'))
+  ) {
+    if (interaction.isButton()) return handleActivityComponent(interaction);
+    if (interaction.isModalSubmit()) return handleActivityModal(interaction);
+    return handleActivitySelect(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
