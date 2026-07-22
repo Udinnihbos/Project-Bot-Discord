@@ -2,8 +2,7 @@ import {
   SlashCommandBuilder, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder, ChannelSelectMenuBuilder,
-  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
-  PermissionFlagsBits, MessageFlags,
+  ChannelType, MessageFlags,
 } from 'discord.js';
 import {
   getGuildActivity, saveGuildActivity, recordMessage,
@@ -32,11 +31,17 @@ function ownerOnlyEmbed(interaction) {
 // PANEL BUILDERS
 // ════════════════════════════════════════
 
-function panelMain(data, guild) {
+function panelMain(data, guild, flash = null) {
   const tracked = data.trackedChannels.length;
   const membersCount = Object.keys(data.members).length;
   const lastMember = Object.entries(data.members)
     .sort((a, b) => (b[1].lastActive || 0) - (a[1].lastActive || 0))[0];
+
+  const descriptionLines = [
+    '> Pantau & publikasi aktivitas chat member.',
+    '> Semua perubahan langsung tersimpan otomatis.',
+  ];
+  if (flash) descriptionLines.push('', `> ${flash}`);
 
   const embed = new EmbedBuilder()
     .setColor(ACCENT)
@@ -45,12 +50,7 @@ function panelMain(data, guild) {
       iconURL: guild.iconURL({ dynamic: true }) ?? undefined,
     })
     .setTitle('⚙️ Activity — Settings')
-    .setDescription(
-      [
-        '> Pantau & publikasi aktivitas chat member.',
-        '> Semua perubahan langsung tersimpan otomatis.',
-      ].join('\n')
-    )
+    .setDescription(descriptionLines.join('\n'))
     .addFields(
       {
         name: '🟢 Status',
@@ -69,7 +69,7 @@ function panelMain(data, guild) {
       },
       {
         name: '🚀 Published',
-        value: data.publishedMessageId ? `✅ \`${data.publishedMessageId}\`` : '❌ Belum dipublish',
+        value: data.publishedMessageId ? `✅ Dipublish` : '❌ Belum dipublish',
         inline: true,
       },
       {
@@ -132,7 +132,7 @@ function panelMain(data, guild) {
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId('act_back_main')
-        .setLabel('◀ Tutup')
+        .setLabel('✖ Tutup Panel')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -140,76 +140,80 @@ function panelMain(data, guild) {
   return { embed, rows };
 }
 
-function panelChannels(data, guild) {
+function panelChannels(data, guild, flash = null) {
   const trackedSet = new Set(data.trackedChannels);
   const allText = guild.channels.cache
     .filter(c => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement)
     .sort((a, b) => a.rawPosition - b.rawPosition);
 
+  const desc = [
+    '> Hanya channel yang dipilih di sini yang akan dihitung aktivitasnya.',
+    `> Saat ini: **${data.trackedChannels.length}** channel dipilih.`,
+  ];
+  if (flash) desc.push('', `> ${flash}`);
+
   const embed = new EmbedBuilder()
     .setColor(ACCENT)
     .setTitle('📡 Pilih Channel yang Di-track')
-    .setDescription(
-      [
-        '> Hanya channel yang dipilih di sini yang akan dihitung aktivitasnya.',
-        `> Saat ini: **${data.trackedChannels.length}** channel dipilih.`,
-      ].join('\n')
-    )
-    .setFooter({ text: 'Tip: Kosongkan pilihan untuk menonaktifkan tracking' });
+    .setDescription(desc.join('\n'))
+    .setFooter({ text: 'Tip: Pilih channel lalu tekan Enter / klik di luar menu untuk menyimpan' });
 
   const rows = [];
 
-  // Channel select
   const channelSelect = new ChannelSelectMenuBuilder()
     .setCustomId('act_set_channels_pick')
     .setPlaceholder('📡 Pilih channel… (bisa lebih dari 1)')
     .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
     .setMinValues(0)
-    .setMaxValues(Math.min(25, allText.size));
+    .setMaxValues(Math.min(25, Math.max(1, allText.size)));
 
   if (data.trackedChannels.length) {
     channelSelect.setDefaultChannels(data.trackedChannels.slice(0, 25));
   }
   rows.push(new ActionRowBuilder().addComponents(channelSelect));
 
-  // Quick toggle select (sama tapi dengan select menu string untuk preview)
-  const listLines = allText
-    .map(c => {
-      const on = trackedSet.has(c.id);
-      return `${on ? '🟢' : '⚫'} ${on ? '✅' : '❌'} <#${c.id}>`;
-    })
-    .join('\n');
+  const listLines = allText.size
+    ? allText
+      .map(c => `${trackedSet.has(c.id) ? '🟢 ✅' : '⚫ ❌'} <#${c.id}>`)
+      .join('\n')
+    : '*Tidak ada channel text*';
 
   embed.addFields({
     name: `📋 Daftar Channel (${allText.size})`,
-    value: listLines.slice(0, 1024) || '*Tidak ada channel text*',
+    value: listLines.slice(0, 1024),
   });
 
   rows.push(new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('act_set_channels_all').setLabel('✅ Pilih Semua').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('act_set_channels_none').setLabel('❌ Hapus Semua').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('act_set_channels_all').setLabel('✅ Pilih Semua').setStyle(ButtonStyle.Success).setDisabled(allText.size === 0),
+    new ButtonBuilder().setCustomId('act_set_channels_none').setLabel('❌ Hapus Semua').setStyle(ButtonStyle.Danger).setDisabled(data.trackedChannels.length === 0),
     new ButtonBuilder().setCustomId('act_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
   ));
 
   return { embed, rows };
 }
 
-function panelLeaderboard(data, guild) {
+function panelLeaderboard(data, guild, flash = null) {
+  const desc = [
+    '> Pilih channel tempat leaderboard akan di-publish.',
+    '> Auto-update akan memperbarui pesan setiap ada pesan baru.',
+  ];
+  if (flash) desc.push('', `> ${flash}`);
+
   const embed = new EmbedBuilder()
     .setColor(ACCENT)
     .setTitle('🏆 Pengaturan Leaderboard')
-    .setDescription('Pilih channel tempat leaderboard akan di-publish. Leaderboard akan di-post sebagai pesan baru dan dapat di-auto-update.')
+    .setDescription(desc.join('\n'))
     .addFields(
       { name: '🏆 Channel Leaderboard', value: data.leaderboardChannelId ? `<#${data.leaderboardChannelId}>` : '❌ Belum diset', inline: true },
       { name: '🔄 Auto Update', value: data.autoUpdate ? '✅ Aktif' : '❌ Nonaktif', inline: true },
-      { name: '🚀 Published Message', value: data.publishedMessageId ? `✅ \`${data.publishedMessageId}\`` : '❌ Belum dipublish', inline: false },
+      { name: '🚀 Published Message', value: data.publishedMessageId ? '✅ Sudah dipublish' : '❌ Belum dipublish', inline: false },
     );
 
   const rows = [
     new ActionRowBuilder().addComponents(
       new ChannelSelectMenuBuilder()
         .setCustomId('act_set_lbchannel')
-        .setPlaceholder('🏆 Pilih channel leaderboard…')
+        .setPlaceholder(data.leaderboardChannelId ? `📍 Saat ini: #${guild.channels.cache.get(data.leaderboardChannelId)?.name || 'unknown'} — klik untuk ganti` : '🏆 Pilih channel leaderboard…')
         .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
     ),
     new ActionRowBuilder().addComponents(
@@ -218,22 +222,25 @@ function panelLeaderboard(data, guild) {
         .setLabel(data.autoUpdate ? '🔴 Matikan Auto Update' : '🟢 Nyalakan Auto Update')
         .setStyle(data.autoUpdate ? ButtonStyle.Danger : ButtonStyle.Success)
         .setDisabled(!data.leaderboardChannelId),
-      new ButtonBuilder()
-        .setCustomId('act_back_main')
-        .setLabel('◀ Kembali')
-        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('act_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
     ),
   ];
 
   return { embed, rows };
 }
 
-function panelResetMenu(data, guild) {
+function panelResetMenu(data, guild, flash = null) {
   const memberCount = Object.keys(data.members).length;
+  const desc = [
+    '> Pilih jenis reset yang ingin dilakukan.',
+    '> **Aksi ini tidak dapat dibatalkan.**',
+  ];
+  if (flash) desc.push('', `> ${flash}`);
+
   const embed = new EmbedBuilder()
     .setColor(WARN)
     .setTitle('♻️ Reset Data')
-    .setDescription('Pilih jenis reset yang ingin dilakukan. **Aksi ini tidak dapat dibatalkan.**')
+    .setDescription(desc.join('\n'))
     .addFields(
       { name: '👥 Member Terdata', value: `${memberCount} orang`, inline: true },
       { name: '⚠️ Peringatan', value: 'Data yang dihapus tidak bisa dikembalikan', inline: true },
@@ -261,13 +268,19 @@ function panelResetMenu(data, guild) {
   return { embed, rows };
 }
 
-function panelResetMemberSelect(data, guild) {
+function panelResetMemberSelect(data, guild, flash = null) {
   const list = getSortedMembers(guild.id).slice(0, 25);
+
+  const desc = [
+    '> Pilih member dari menu, lalu konfirmasi di pop-up yang muncul.',
+    '> Data aktivitas member yang dipilih akan dihapus total.',
+  ];
+  if (flash) desc.push('', `> ${flash}`);
 
   const embed = new EmbedBuilder()
     .setColor(WARN)
     .setTitle('👤 Pilih Member untuk di-Reset')
-    .setDescription('Data aktivitas member yang dipilih akan dihapus total.');
+    .setDescription(desc.join('\n'));
 
   const rows = [];
   if (list.length === 0) {
@@ -277,8 +290,8 @@ function panelResetMemberSelect(data, guild) {
   } else {
     const options = list.map((m, i) =>
       new StringSelectMenuOptionBuilder()
-        .setLabel(`${i + 1}. ${m.id}`) // username akan kelihatan di UI sebagai mention
-        .setDescription(`${(m.totalMessages || 0).toLocaleString('id-ID')} pesan • Rank #${i + 1}`)
+        .setLabel(`Rank #${i + 1} — ${(m.totalMessages || 0).toLocaleString('id-ID')} pesan`)
+        .setDescription(`ID: ${m.id}`)
         .setValue(m.id)
         .setEmoji('👤')
     );
@@ -296,6 +309,16 @@ function panelResetMemberSelect(data, guild) {
   return { embed, rows };
 }
 
+function panelClosed() {
+  const embed = new EmbedBuilder()
+    .setColor(MUTED)
+    .setTitle('✖ Panel Ditutup')
+    .setDescription('Panel settings sudah ditutup.\n\nBuka lagi kapan saja dengan `/activity settings`.')
+    .setFooter({ text: 'Activity Tracker' })
+    .setTimestamp();
+  return { embed, rows: [] };
+}
+
 // ════════════════════════════════════════
 // PUBLISH / UPDATE LEADERBOARD
 // ════════════════════════════════════════
@@ -308,7 +331,6 @@ async function publishLeaderboard(guild, channelId, data) {
   const rows = getSortedMembers(guild.id);
   const { embed, components } = buildLeaderboardEmbed({ guild, rows, page: 0, pageSize: PAGE_SIZE });
 
-  // Try to edit existing message
   if (data.publishedMessageId) {
     try {
       const msg = await channel.messages.fetch(data.publishedMessageId);
@@ -324,24 +346,31 @@ async function publishLeaderboard(guild, channelId, data) {
 }
 
 // ════════════════════════════════════════
-// INTERACTION RENDER
+// INTERACTION RENDER — edit in place
 // ════════════════════════════════════════
 
-async function render(target, guildId, state, guild) {
+/**
+ * Render panel by editing the original interaction message IN PLACE.
+ * `target` is the interaction; we call `editReply()` if we already replied,
+ * otherwise we fall back to `update()`.
+ */
+async function renderInPlace(interaction, guildId, page, guild, flash = null) {
   const data = getGuildActivity(guildId);
   let panel;
-  switch (state.page) {
-    case 'channels': panel = panelChannels(data, guild); break;
-    case 'leaderboard': panel = panelLeaderboard(data, guild); break;
-    case 'reset': panel = panelResetMenu(data, guild); break;
-    case 'reset_member': panel = panelResetMemberSelect(data, guild); break;
-    default: panel = panelMain(data, guild); break;
+  switch (page) {
+    case 'channels': panel = panelChannels(data, guild, flash); break;
+    case 'leaderboard': panel = panelLeaderboard(data, guild, flash); break;
+    case 'reset': panel = panelResetMenu(data, guild, flash); break;
+    case 'reset_member': panel = panelResetMemberSelect(data, guild, flash); break;
+    case 'closed': panel = panelClosed(); break;
+    default: panel = panelMain(data, guild, flash); break;
   }
-  const payload = { embeds: [panel.embed], components: panel.rows, flags: MessageFlags.Ephemeral };
-  if (typeof target.update === 'function') {
-    await target.update(payload);
-  } else if (typeof target.editReply === 'function') {
-    await target.editReply(payload);
+  const payload = { embeds: [panel.embed], components: panel.rows };
+  // Always use editReply since the message was created with deferUpdate/reply
+  if (interaction.editReply) {
+    await interaction.editReply(payload);
+  } else {
+    await interaction.update(payload);
   }
 }
 
@@ -428,21 +457,8 @@ export async function execute(interaction) {
 }
 
 // ════════════════════════════════════════
-// COMPONENT HANDLERS (exported for index.js)
+// BUTTON HANDLER — edit in place
 // ════════════════════════════════════════
-
-function getStateFromMessage(message) {
-  // Encode state in customId where possible; for ephemeral we use in-memory map
-  return ephemeralStates.get(message.id) || { page: 'main' };
-}
-
-export const ephemeralStates = new Map();
-
-function rememberState(messageId, state) {
-  ephemeralStates.set(messageId, state);
-  // auto-cleanup 30 menit
-  setTimeout(() => ephemeralStates.delete(messageId), 30 * 60 * 1000).unref?.();
-}
 
 export async function handleActivityComponent(interaction) {
   if (!interaction.guildId) return false;
@@ -453,142 +469,180 @@ export async function handleActivityComponent(interaction) {
 
   const guildId = interaction.guildId;
   const guild = interaction.guild;
+
+  // Defer update first so we can safely edit the message
+  // (must be done BEFORE any heavy work to avoid 3s timeout)
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch (_) { /* may already be deferred */ }
+
   const data = getGuildActivity(guildId);
 
-  // ── Navigation buttons ──
-  if (interaction.customId === 'act_back_main') {
-    rememberState(interaction.message.id, { page: 'main' });
-    return render(interaction, guildId, { page: 'main' }, guild);
+  // ── Tutup panel ──
+  if (interaction.customId === 'act_back_main' || interaction.customId === 'act_close') {
+    // If we're on the main settings panel, close it; otherwise navigate to main.
+    const e = interaction.message.embeds[0];
+    const title = (e?.title || e?.data?.title || '');
+    if (title.includes('Activity — Settings')) {
+      return renderInPlace(interaction, guildId, 'closed', guild);
+    }
+    return renderInPlace(interaction, guildId, 'main', guild);
   }
 
+  // ── Navigation ──
   if (interaction.customId === 'act_set_channels') {
-    rememberState(interaction.message.id, { page: 'channels' });
-    return render(interaction, guildId, { page: 'channels' }, guild);
+    return renderInPlace(interaction, guildId, 'channels', guild);
   }
-
   if (interaction.customId === 'act_set_leaderboard') {
-    rememberState(interaction.message.id, { page: 'leaderboard' });
-    return render(interaction, guildId, { page: 'leaderboard' }, guild);
+    return renderInPlace(interaction, guildId, 'leaderboard', guild);
   }
-
   if (interaction.customId === 'act_reset_menu') {
-    rememberState(interaction.message.id, { page: 'reset' });
-    return render(interaction, guildId, { page: 'reset' }, guild);
+    return renderInPlace(interaction, guildId, 'reset', guild);
   }
-
   if (interaction.customId === 'act_reset_member') {
-    rememberState(interaction.message.id, { page: 'reset_member' });
-    return render(interaction, guildId, { page: 'reset_member' }, guild);
+    return renderInPlace(interaction, guildId, 'reset_member', guild);
   }
 
-  // ── Toggle Enable ──
+  // ── Toggle Enable (langsung update di tempat) ──
   if (interaction.customId === 'act_set_toggle') {
     data.enabled = !data.enabled;
     saveGuildActivity(guildId, data);
-    const embed = new EmbedBuilder()
-      .setColor(data.enabled ? SUCCESS : WARN)
-      .setTitle(data.enabled ? '🟢 Activity Diaktifkan' : '🔴 Activity Dinonaktifkan')
-      .setDescription(
-        data.enabled
-          ? 'Bot sekarang akan melacak chat member di channel yang dipilih.'
-          : 'Pelacakan chat dihentikan. Data tetap tersimpan.'
-      );
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    return render(interaction, guildId, { page: 'main' }, guild);
+    return renderInPlace(
+      interaction, guildId, 'main', guild,
+      data.enabled
+        ? '🟢 **Activity diaktifkan** — bot sekarang melacak chat member.'
+        : '🔴 **Activity dinonaktifkan** — pelacakan dihentikan, data tetap tersimpan.'
+    );
   }
 
-  // ── Auto Update Toggle (inside leaderboard panel) ──
+  // ── Auto Update Toggle ──
   if (interaction.customId === 'act_toggle_autoupdate' || interaction.customId === 'act_set_autoupdate') {
     if (!data.leaderboardChannelId) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(WARN).setTitle('⚠️ Channel Leaderboard Belum Diset').setDescription('Pilih channel leaderboard dulu.')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return renderInPlace(interaction, guildId, 'leaderboard', guild, '⚠️ Pilih channel leaderboard dulu sebelum menyalakan auto update.');
     }
     data.autoUpdate = !data.autoUpdate;
     saveGuildActivity(guildId, data);
-    await interaction.reply({
-      embeds: [new EmbedBuilder().setColor(data.autoUpdate ? SUCCESS : MUTED).setTitle(data.autoUpdate ? '🔄 Auto Update Aktif' : '⏸️ Auto Update Nonaktif').setDescription(data.autoUpdate ? 'Leaderboard akan di-update otomatis setiap kali ada pesan baru.' : 'Leaderboard tidak akan di-update otomatis.')],
-      flags: MessageFlags.Ephemeral,
-    });
-    return render(interaction, guildId, { page: 'main' }, guild);
+    return renderInPlace(
+      interaction, guildId, 'leaderboard', guild,
+      data.autoUpdate
+        ? '🔄 **Auto Update aktif** — leaderboard akan ter-update otomatis.'
+        : '⏸️ **Auto Update dimatikan** — leaderboard tidak akan auto-update.'
+    );
   }
 
-  // ── Quick select all / none ──
+  // ── Pilih semua / hapus semua channel ──
   if (interaction.customId === 'act_set_channels_all') {
     const allText = guild.channels.cache
       .filter(c => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement)
       .map(c => c.id);
     data.trackedChannels = allText;
     saveGuildActivity(guildId, data);
-    return render(interaction, guildId, { page: 'channels' }, guild);
+    return renderInPlace(interaction, guildId, 'channels', guild, `✅ **${allText.length} channel** dipilih untuk di-track.`);
   }
   if (interaction.customId === 'act_set_channels_none') {
     data.trackedChannels = [];
     saveGuildActivity(guildId, data);
-    return render(interaction, guildId, { page: 'channels' }, guild);
+    return renderInPlace(interaction, guildId, 'channels', guild, '❌ Semua channeltracked telah dihapus.');
   }
 
   // ── Publish / Update Leaderboard ──
   if (interaction.customId === 'act_publish') {
     if (!data.enabled || !data.leaderboardChannelId) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor(WARN).setTitle('⚠️ Belum Lengkap').setDescription('Aktifkan tracker dan pilih channel leaderboard dulu.')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return renderInPlace(interaction, guildId, 'main', guild, '⚠️ Aktifkan tracker dan pilih channel leaderboard dulu.');
     }
     const newMsgId = await publishLeaderboard(guild, data.leaderboardChannelId, data);
     if (newMsgId) {
       data.publishedMessageId = newMsgId;
       saveGuildActivity(guildId, data);
-      await interaction.reply({
-        embeds: [new EmbedBuilder().setColor(SUCCESS).setTitle('🚀 Leaderboard Dipublish').setDescription(`Leaderboard berhasil dikirim ke <#${data.leaderboardChannelId}>.\n\`messageId: ${newMsgId}\``)],
-        flags: MessageFlags.Ephemeral,
-      });
+      return renderInPlace(interaction, guildId, 'main', guild, `🚀 **Leaderboard dipublish** ke <#${data.leaderboardChannelId}>.`);
     } else {
-      await interaction.reply({
-        embeds: [new EmbedBuilder().setColor(DANGER).setTitle('❌ Gagal Publish').setDescription('Bot tidak bisa mengirim pesan ke channel tersebut.')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return renderInPlace(interaction, guildId, 'main', guild, '❌ Gagal publish — bot tidak bisa mengirim pesan ke channel tersebut (cek permission).');
     }
-    return render(interaction, guildId, { page: 'main' }, guild);
   }
 
   if (interaction.customId === 'act_clear_message') {
     data.publishedMessageId = null;
     saveGuildActivity(guildId, data);
-    return render(interaction, guildId, { page: 'main' }, guild);
+    return renderInPlace(interaction, guildId, 'main', guild, '🗑️ **Published message** direset. Klik "🚀 Publish" untuk publish ulang.');
   }
 
-  // ── Reset confirmations ──
+  // ── Reset server → tampilkan modal konfirmasi ──
   if (interaction.customId === 'act_reset_server') {
-    // Show confirm modal
-    const modal = new ModalBuilder()
-      .setCustomId('act_reset_server_modal')
-      .setTitle('Konfirmasi Reset Server');
-    modal.addComponents(
+    // Modal CANNOT be shown after deferUpdate. So we need a different flow:
+    // Edit the message with a "confirm" panel that has a confirm + cancel button.
+    const embed = new EmbedBuilder()
+      .setColor(DANGER)
+      .setTitle('⚠️ Konfirmasi Reset Server')
+      .setDescription(
+        [
+          '> Tindakan ini akan **menghapus total** data aktivitas **semua member** di server ini.',
+          '> **Aksi ini tidak bisa dibatalkan!**',
+          '',
+          '> Tekan **Konfirmasi** untuk lanjut, atau **Batal** untuk membatalkan.',
+        ].join('\n')
+      )
+      .setFooter({ text: 'Activity Tracker • Konfirmasi Reset' })
+      .setTimestamp();
+
+    const rows = [
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('confirm')
-          .setLabel('Ketik "RESET" untuk konfirmasi')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setMaxLength(10)
-          .setPlaceholder('RESET')
+        new ButtonBuilder()
+          .setCustomId('act_reset_server_confirm')
+          .setLabel('✅ Konfirmasi Reset')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('act_reset_server_cancel')
+          .setLabel('❌ Batal')
+          .setStyle(ButtonStyle.Secondary),
       ),
+    ];
+
+    return interaction.editReply({ embeds: [embed], components: rows });
+  }
+
+  // ── Reset server: konfirmasi (step 2) ──
+  if (interaction.customId === 'act_reset_server_confirm') {
+    const count = Object.keys(data.members).length;
+    resetGuild(guildId);
+    return renderInPlace(
+      interaction, guildId, 'main', guild,
+      `🗑️ **Server direset** — data **${count}** member telah dihapus total.`
     );
-    return interaction.showModal(modal);
+  }
+
+  if (interaction.customId === 'act_reset_server_cancel') {
+    return renderInPlace(interaction, guildId, 'reset', guild, '↩️ Dibatalkan.');
+  }
+
+  // ── Reset member: konfirmasi (step 2) ──
+  if (interaction.customId.startsWith('act_reset_member_confirm:')) {
+    const targetId = interaction.customId.split(':')[1];
+    const before = getMemberActivity(guildId, targetId);
+    const total = before?.totalMessages || 0;
+    resetMember(guildId, targetId);
+    return renderInPlace(
+      interaction, guildId, 'main', guild,
+      `♻️ **Member direset** — <@${targetId}> (${total.toLocaleString('id-ID')} pesan) telah dihapus.`
+    );
+  }
+
+  if (interaction.customId === 'act_reset_member_cancel') {
+    return renderInPlace(interaction, guildId, 'reset_member', guild, '↩️ Dibatalkan.');
   }
 
   // ── Leaderboard paging (public) ──
   if (interaction.customId === 'act_lb_prev' || interaction.customId === 'act_lb_next' || interaction.customId === 'act_lb_refresh') {
-    const footerText = interaction.message.embeds[0]?.footer?.text || '';
-    const m = footerText.match(/Halaman\s+(\d+)\s*\/\s*(\d+)/);
-    // Decode from customId? we can re-render fresh
     const data2 = getGuildActivity(guildId);
     if (!data2.enabled) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor(MUTED).setTitle('Tracker Nonaktif')], flags: MessageFlags.Ephemeral });
+      return interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(MUTED).setTitle('Tracker Nonaktif').setDescription('Activity Tracker sudah dinonaktifkan.')],
+        components: [],
+      });
     }
+    const footerText = interaction.message.embeds[0]?.footer?.text || interaction.message.embeds[0]?.data?.footer?.text || '';
+    const m = footerText.match(/Halaman\s+(\d+)\s*\/\s*(\d+)/);
     let page = 0;
     if (m) {
       page = parseInt(m[1], 10) - 1;
@@ -606,7 +660,7 @@ export async function handleActivityComponent(interaction) {
 }
 
 // ════════════════════════════════════════
-// SELECT MENU & MODAL HANDLERS (also for index.js)
+// SELECT MENU HANDLER — edit in place
 // ════════════════════════════════════════
 
 export async function handleActivitySelect(interaction) {
@@ -619,55 +673,79 @@ export async function handleActivitySelect(interaction) {
   const guild = interaction.guild;
   const data = getGuildActivity(guildId);
 
-  // Channel multi-select (tracked channels)
+  // Defer so we can editReply cleanly
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch (_) { /* */ }
+
+  // ── Channel multi-select (tracked channels) ──
   if (interaction.isChannelSelectMenu() && interaction.customId === 'act_set_channels_pick') {
     data.trackedChannels = interaction.values;
     saveGuildActivity(guildId, data);
-    await interaction.reply({
-      embeds: [new EmbedBuilder().setColor(SUCCESS).setTitle('✅ Channel Diperbarui').setDescription(`${data.trackedChannels.length} channel dipilih untuk di-track.`)],
-      flags: MessageFlags.Ephemeral,
-    });
-    return render(interaction.message, guildId, { page: 'channels' }, guild);
+    return renderInPlace(
+      interaction, guildId, 'channels', guild,
+      `✅ **${data.trackedChannels.length} channel** dipilih untuk di-track.`
+    );
   }
 
-  // Channel select for leaderboard
+  // ── Channel select for leaderboard ──
   if (interaction.isChannelSelectMenu() && interaction.customId === 'act_set_lbchannel') {
     data.leaderboardChannelId = interaction.values[0];
     saveGuildActivity(guildId, data);
-    const okEmbed = new EmbedBuilder()
-      .setColor(SUCCESS)
-      .setTitle('🏆 Channel Leaderboard Diset')
-      .setDescription(`Leaderboard channel: <#${data.leaderboardChannelId}>`)
-      .setFooter({ text: 'Klik "🟢 Auto Update" untuk mengaktifkan auto update.' })
-      .setTimestamp();
-    await interaction.reply({ embeds: [okEmbed], flags: MessageFlags.Ephemeral });
-    return render(interaction.message, guildId, { page: 'main' }, guild);
+    return renderInPlace(
+      interaction, guildId, 'leaderboard', guild,
+      `🏆 **Channel leaderboard diset** ke <#${data.leaderboardChannelId}>. Sekarang bisa publish atau nyalakan auto update.`
+    );
   }
 
-  // Reset member select
+  // ── Reset member select ──
   if (interaction.isStringSelectMenu() && interaction.customId === 'act_reset_member_pick') {
     const targetId = interaction.values[0];
     const target = await guild.members.fetch(targetId).catch(() => null);
     const tag = target ? `<@${targetId}>` : `\`${targetId}\``;
-    const modal = new ModalBuilder()
-      .setCustomId(`act_reset_member_modal:${targetId}`)
-      .setTitle('Konfirmasi Reset Member');
-    modal.addComponents(
+    const memberData = getMemberActivity(guildId, targetId);
+    const total = memberData?.totalMessages || 0;
+
+    // Show confirm panel in place (because we can't show modal after deferUpdate)
+    const embed = new EmbedBuilder()
+      .setColor(DANGER)
+      .setTitle('⚠️ Konfirmasi Reset Member')
+      .setDescription(
+        [
+          `> Tindakan ini akan **menghapus total** data aktivitas ${tag}.`,
+          `> Total pesan saat ini: **${total.toLocaleString('id-ID')}**`,
+          '> **Aksi ini tidak bisa dibatalkan!**',
+          '',
+          '> Tekan **Konfirmasi** untuk lanjut, atau **Batal** untuk membatalkan.',
+        ].join('\n')
+      )
+      .setFooter({ text: 'Activity Tracker • Konfirmasi Reset Member' })
+      .setTimestamp();
+
+    const rows = [
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('confirm')
-          .setLabel(`Ketik "RESET" untuk konfirmasi reset ${tag}`)
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setMaxLength(10)
-          .setPlaceholder('RESET')
+        new ButtonBuilder()
+          .setCustomId(`act_reset_member_confirm:${targetId}`)
+          .setLabel('✅ Konfirmasi Reset')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('act_reset_member_cancel')
+          .setLabel('❌ Batal')
+          .setStyle(ButtonStyle.Secondary),
       ),
-    );
-    return interaction.showModal(modal);
+    ];
+
+    return interaction.editReply({ embeds: [embed], components: rows });
   }
 
   return false;
 }
+
+// ════════════════════════════════════════
+// MODAL HANDLER (no longer used for resets, but keep for backward-compat safety)
+// ════════════════════════════════════════
 
 export async function handleActivityModal(interaction) {
   if (!interaction.guildId) return false;
@@ -675,38 +753,8 @@ export async function handleActivityModal(interaction) {
   if (!isOwnerOrAdmin(interaction)) {
     return interaction.reply({ embeds: [ownerOnlyEmbed(interaction)], flags: MessageFlags.Ephemeral });
   }
-  const guildId = interaction.guildId;
-  const data = getGuildActivity(guildId);
-
-  if (interaction.customId === 'act_reset_server_modal') {
-    const confirm = interaction.fields.getTextInputValue('confirm');
-    if (confirm !== 'RESET') {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor(WARN).setTitle('⚠️ Dibatalkan').setDescription('Konfirmasi salah. Ketik **RESET** (huruf besar semua).')], flags: MessageFlags.Ephemeral });
-    }
-    const count = Object.keys(data.members).length;
-    resetGuild(guildId);
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor(SUCCESS).setTitle('♻️ Server Direset').setDescription(`Data aktivitas **${count}** member berhasil dihapus.`)],
-      flags: MessageFlags.Ephemeral,
-    });
-  }
-
-  if (interaction.customId.startsWith('act_reset_member_modal:')) {
-    const targetId = interaction.customId.split(':')[1];
-    const confirm = interaction.fields.getTextInputValue('confirm');
-    if (confirm !== 'RESET') {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor(WARN).setTitle('⚠️ Dibatalkan')], flags: MessageFlags.Ephemeral });
-    }
-    const before = getMemberActivity(guildId, targetId);
-    const total = before?.totalMessages || 0;
-    resetMember(guildId, targetId);
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor(SUCCESS).setTitle('♻️ Member Direset').setDescription(`Data aktivitas <@${targetId}> (${total.toLocaleString('id-ID')} pesan) telah dihapus.`)],
-      flags: MessageFlags.Ephemeral,
-    });
-  }
-
-  return false;
+  // Just acknowledge; current flow uses buttons instead of modals
+  return interaction.reply({ content: 'ℹ️ Flow ini sudah diganti ke konfirmasi button. Silakan buka `/activity settings` lagi.', flags: MessageFlags.Ephemeral });
 }
 
 // ════════════════════════════════════════
