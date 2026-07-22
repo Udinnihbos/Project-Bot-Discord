@@ -11,6 +11,11 @@ import { handleSikmatreeSelect } from './utils/sikmatreeHandler.js';
 import { handleSikmasearch } from './utils/sikmasearchHandler.js';
 import { handleSikmaticket } from './utils/sikmaticketHandler.js';
 import { handleActivityComponent, handleActivitySelect, handleActivityModal, handleActivityMessageCreate } from './commands/activity.js';
+import { handleMusicButton } from './music/buttonHandler.js';
+import { onPlayerEvent, is247, getPlayerStatus } from './music/player.js';
+import { getGuildState, patchGuildState } from './music/state.js';
+import { getMusicConfig } from './music/config.js';
+import { buildNowPlayingEmbed, buildNowPlayingRows, buildIdleEmbed } from './music/ui.js';
 
 config();
 
@@ -25,6 +30,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildPresences,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates,
   ]
 });
 
@@ -48,7 +54,91 @@ client.once('ready', () => {
   client.user.setActivity('🎣 Memancing...', { type: 0 });
   startWeatherNotifier(client);
   startSpawnNotifier(client);
+  setupMusicListeners(client);
 });
+
+function setupMusicListeners(c) {
+  // Auto-update Now Playing message saat lagu ganti
+  onPlayerEvent(async (evt) => {
+    if (evt.type === 'songStart') {
+      const guild = c.guilds.cache.get(evt.guildId);
+      if (!guild) return;
+      const state = evt.state;
+      const msgId = state.nowPlayingMessageId;
+      if (!msgId) return;
+      const textChId = state.textChannelId;
+      if (!textChId) return;
+      const ch = await guild.channels.fetch(textChId).catch(() => null);
+      if (!ch) return;
+      const msg = await ch.messages.fetch(msgId).catch(() => null);
+      if (!msg) return;
+      const embed = buildNowPlayingEmbed(guild, evt.song, state);
+      const rows = buildNowPlayingRows(evt.guildId);
+      await msg.edit({ embeds: [embed], components: rows }).catch(() => {});
+    }
+
+    if (evt.type === 'stopped' || evt.type === 'queueEmpty') {
+      // mark now playing as idle
+      const guild = c.guilds.cache.get(evt.guildId);
+      if (!guild) return;
+      const state = getGuildState(evt.guildId);
+      const msgId = state.nowPlayingMessageId;
+      if (!msgId) return;
+      const textChId = state.textChannelId;
+      if (!textChId) return;
+      const ch = await guild.channels.fetch(textChId).catch(() => null);
+      if (!ch) return;
+      const msg = await ch.messages.fetch(msgId).catch(() => null);
+      if (!msg) return;
+      const idleEmbed = buildIdleEmbed(guild);
+      if (evt.type === 'stopped') {
+        await msg.edit({ embeds: [idleEmbed.setTitle('⏹️ Dihentikan')], components: [] }).catch(() => {});
+      } else {
+        // queueEmpty — check 24/7
+        if (is247(evt.guildId)) return; // bot stays
+        await msg.edit({ embeds: [idleEmbed], components: buildNowPlayingRows(evt.guildId) }).catch(() => {});
+      }
+    }
+  });
+
+  // Voice state: kalau bot sendirian di VC (no users), schedule auto-leave
+  c.on('voiceStateUpdate', async (oldState, newState) => {
+    // Bot yang leave? skip
+    if (newState.id === c.user.id) return;
+    // Cari guild yang affected
+    const guild = newState.guild || oldState.guild;
+    if (!guild) return;
+    const state = getGuildState(guild.id);
+    if (!state.voiceChannelId) return;
+    const voiceCh = await guild.channels.fetch(state.voiceChannelId).catch(() => null);
+    if (!voiceCh) return;
+    // Count non-bot members
+    const humans = voiceCh.members.filter(m => !m.user.bot);
+    if (humans.size > 0) return; // ada orang, gak apa-apa
+
+    // Kalau 24/7 aktif, gak leave
+    if (is247(guild.id)) return;
+
+    // Check autoLeaveMinutes setting
+    const cfg = getMusicConfig(guild.id);
+    const minutes = cfg.autoLeaveMinutes ?? 5;
+    if (minutes === 0) return; // never auto-leave
+
+    // Schedule leave
+    setTimeout(async () => {
+      const fresh = getGuildState(guild.id);
+      if (!fresh.voiceChannelId) return;
+      const v2 = await guild.channels.fetch(fresh.voiceChannelId).catch(() => null);
+      if (!v2) return;
+      const stillEmpty = v2.members.filter(m => !m.user.bot).size === 0;
+      if (stillEmpty && !is247(guild.id)) {
+        const { stop } = await import('./music/player.js');
+        stop(guild.id);
+        console.log(`[${guild.id}] Auto-leave: VC kosong selama ${minutes} menit`);
+      }
+    }, minutes * 60 * 1000).unref?.();
+  });
+}
 
 // Anti-Raid
 client.on('guildMemberAdd', async member => {
@@ -94,6 +184,10 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) return handleActivityComponent(interaction);
     if (interaction.isModalSubmit()) return handleActivityModal(interaction);
     return handleActivitySelect(interaction);
+  }
+  // Music Player (Now Playing buttons, queue paging)
+  if (interaction.isButton() && interaction.customId.startsWith('music_')) {
+    return handleMusicButton(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
