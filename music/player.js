@@ -229,6 +229,56 @@ export function stop(guildId) {
   }
 }
 
+/**
+ * Enqueue pre-resolved tracks to a guild's queue.
+ * If nothing is currently playing, advances to the first track.
+ * Returns the updated state.
+ */
+export async function enqueueTracks({ guild, voiceChannel, textChannel, tracks, requestedBy }) {
+  if (!tracks.length) throw new Error('Tidak ada lagu untuk di-enqueue.');
+
+  const state = getGuildState(guild.id);
+  state.textChannelId = textChannel.id;
+  state.voiceChannelId = voiceChannel.id;
+  if (requestedBy) state._requestedById = requestedBy;
+
+  const connection = await ensureConnection(guild, voiceChannel);
+
+  let live0 = getLive(guild.id);
+  if (!live0) {
+    const player = buildPlayer(guild.id);
+    connection.subscribe(player);
+    live0 = { player, connection, textChannel };
+    setLive(guild.id, live0);
+
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+      try {
+        await Promise.race([
+          entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+          entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+        ]);
+      } catch {
+        dropLive(guild.id);
+        emit({ type: 'disconnected', guildId: guild.id });
+      }
+    });
+  } else {
+    live0.textChannel = textChannel;
+  }
+
+  state.queue.push(...tracks);
+  patchGuildState(guild.id, state);
+  emit({ type: 'tracksAdded', guildId: guild.id, tracks, state });
+
+  if (!state.currentSong) {
+    await advance(guild.id);
+  } else {
+    emit({ type: 'songStart', guildId: guild.id, song: state.currentSong, state });
+  }
+
+  return getGuildState(guild.id);
+}
+
 export function setLoop(guildId, mode) {
   if (!['off', 'song', 'queue'].includes(mode)) return false;
   const state = getGuildState(guildId);

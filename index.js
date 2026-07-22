@@ -17,6 +17,7 @@ import { getGuildState, patchGuildState } from './music/state.js';
 import { getMusicConfig } from './music/config.js';
 import { buildNowPlayingEmbed, buildNowPlayingRows, buildIdleEmbed } from './music/ui.js';
 import { handleMusicSettingsButton, handleMusicSettingsSelect } from './commands/musicsettings.js';
+import { handlePlaylistButton } from './commands/playlist.js';
 
 config();
 
@@ -216,6 +217,10 @@ client.on('interactionCreate', async interaction => {
   ) {
     if (interaction.isButton()) return handleMusicSettingsButton(interaction);
     return handleMusicSettingsSelect(interaction);
+  }
+  // Playlist (delete confirm button)
+  if (interaction.isButton() && interaction.customId.startsWith('pl_')) {
+    return handlePlaylistButton(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
