@@ -1,0 +1,58 @@
+{
+  "baits": [
+    {
+      "id": "cacing_biasa",
+      "name": "Cacing Biasa",
+      "emoji": "🪱",
+      "description": "Umpan standar, sedikit meningkatkan luck.",
+      "price": 200,
+      "luckBonus": 10,
+      "rarityBoost": null
+    },
+    {
+      "id": "cacing_super",
+      "name": "Cacing Super",
+      "emoji": "🟤",
+      "description": "Umpan premium, boost luck lebih besar.",
+      "price": 800,
+      "luckBonus": 30,
+      "rarityBoost": null
+    },
+    {
+      "id": "umpan_rare",
+      "name": "Umpan Rare",
+      "emoji": "🔵",
+      "description": "Meningkatkan chance ikan Rare ke atas.",
+      "price": 2000,
+      "luckBonus": 0,
+      "rarityBoost": { "Rare": 2.0, "Epic": 2.0, "Legendary": 2.0, "Mythic": 2.0, "Secret": 2.0 }
+    },
+    {
+      "id": "umpan_epic",
+      "name": "Umpan Epic",
+      "emoji": "🟣",
+      "description": "Meningkatkan chance ikan Epic ke atas.",
+      "price": 6000,
+      "luckBonus": 0,
+      "rarityBoost": { "Epic": 3.0, "Legendary": 3.0, "Mythic": 3.0, "Secret": 3.0 }
+    },
+    {
+      "id": "umpan_legendary",
+      "name": "Umpan Legendary",
+      "emoji": "🟡",
+      "description": "Boost besar untuk ikan Legendary ke atas!",
+      "price": 20000,
+      "luckBonus": 0,
+      "rarityBoost": { "Legendary": 5.0, "Mythic": 5.0, "Secret": 5.0 }
+    },
+    {
+      "id": "umpan_dewa",
+      "name": "Umpan Dewa",
+      "emoji": "✨",
+      "description": "Umpan paling powerful, boost semua rarity langka secara masif!",
+      "price": 75000,
+      "luckBonus": 100,
+      "rarityBoost": { "Rare": 2.0, "Epic": 4.0, "Legendary": 8.0, "Mythic": 10.0, "Secret": 12.0 }
+    }
+  ]
+}

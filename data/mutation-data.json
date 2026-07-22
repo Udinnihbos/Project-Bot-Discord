@@ -1,0 +1,154 @@
+{
+  "mutations": [
+    {
+      "id": "albino",
+      "name": "Albino",
+      "emoji": "\ud83e\udd0d",
+      "description": "Ikan ini kehilangan pigmennya, menghasilkan warna putih yang langka.",
+      "rarity": "Rare",
+      "chance": 5,
+      "priceBonus": 800,
+      "color": "#f5f5f5"
+    },
+    {
+      "id": "giant",
+      "name": "Giant",
+      "emoji": "\ud83d\udcaa",
+      "description": "Ikan ini tumbuh jauh lebih besar dari ukuran normalnya!",
+      "rarity": "Uncommon",
+      "chance": 10,
+      "priceBonus": 400,
+      "color": "#e67e22"
+    },
+    {
+      "id": "glowing",
+      "name": "Glowing",
+      "emoji": "\u2728",
+      "description": "Ikan ini memancarkan cahaya misterius dari tubuhnya.",
+      "rarity": "Rare",
+      "chance": 4,
+      "priceBonus": 1000,
+      "color": "#f1c40f"
+    },
+    {
+      "id": "toxic",
+      "name": "Toxic",
+      "emoji": "\u2622\ufe0f",
+      "description": "Terkena radiasi aneh, ikan ini berubah warna jadi hijau menyala.",
+      "rarity": "Uncommon",
+      "chance": 8,
+      "priceBonus": 500,
+      "color": "#2ecc71"
+    },
+    {
+      "id": "golden",
+      "name": "Golden",
+      "emoji": "\ud83d\udc9b",
+      "description": "Ikan langka berwarna emas murni, sangat berharga!",
+      "rarity": "Epic",
+      "chance": 2,
+      "priceBonus": 3000,
+      "color": "#f39c12"
+    },
+    {
+      "id": "shadow",
+      "name": "Shadow",
+      "emoji": "\ud83d\udda4",
+      "description": "Ikan dari dimensi lain, tubuhnya seperti bayangan gelap.",
+      "rarity": "Epic",
+      "chance": 2,
+      "priceBonus": 3500,
+      "color": "#2c3e50"
+    },
+    {
+      "id": "crystal",
+      "name": "Crystal",
+      "emoji": "\ud83d\udc8e",
+      "description": "Tubuh ikan ini transparan seperti kristal, sangat indah.",
+      "rarity": "Rare",
+      "chance": 3,
+      "priceBonus": 1500,
+      "color": "#85c1e9"
+    },
+    {
+      "id": "ancient",
+      "name": "Ancient",
+      "emoji": "\ud83c\udffa",
+      "description": "Ikan purba yang seharusnya sudah punah jutaan tahun lalu.",
+      "rarity": "Legendary",
+      "chance": 0.5,
+      "priceBonus": 8000,
+      "color": "#d35400"
+    },
+    {
+      "id": "mini",
+      "name": "Mini",
+      "emoji": "\ud83d\udd2c",
+      "description": "Versi mungil dari ikan ini, menggemaskan tapi sangat langka.",
+      "rarity": "Uncommon",
+      "chance": 7,
+      "priceBonus": 350,
+      "color": "#f8a5c2"
+    },
+    {
+      "id": "rainbow",
+      "name": "Rainbow",
+      "emoji": "\ud83c\udf08",
+      "description": "Ikan ini memancarkan semua warna pelangi sekaligus!",
+      "rarity": "Legendary",
+      "chance": 0.3,
+      "priceBonus": 10000,
+      "color": "#9b59b6"
+    },
+    {
+      "id": "frozen",
+      "name": "Frozen",
+      "emoji": "\ud83e\uddca",
+      "description": "Ikan ini terperangkap dalam es tapi masih hidup, aneh sekali.",
+      "rarity": "Rare",
+      "chance": 4,
+      "priceBonus": 1200,
+      "color": "#5dade2"
+    },
+    {
+      "id": "corrupted",
+      "name": "Corrupted",
+      "emoji": "\ud83d\udc7e",
+      "description": "Ikan ini tampak seperti glitch dalam realita, berkedip-kedip tak karuan.",
+      "rarity": "Mythic",
+      "chance": 0.1,
+      "priceBonus": 25000,
+      "color": "#1a1a2e"
+    }
+  ],
+  "rarityConfig": {
+    "Common": {
+      "chance": 15,
+      "color": "#95a5a6"
+    },
+    "Uncommon": {
+      "chance": 10,
+      "color": "#2ecc71"
+    },
+    "Rare": {
+      "chance": 5,
+      "color": "#3498db"
+    },
+    "Epic": {
+      "chance": 2,
+      "color": "#9b59b6"
+    },
+    "Legendary": {
+      "chance": 0.5,
+      "color": "#f39c12"
+    },
+    "Mythic": {
+      "chance": 0.1,
+      "color": "#e74c3c"
+    },
+    "Secret": {
+      "chance": 0.02,
+      "color": "#1a1a2e"
+    }
+  }
+}

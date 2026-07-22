@@ -1,0 +1,9 @@
+{
+  "_instructions": "ISI DATA INI DENGAN KREDENSIAL SPOTIFY KAMU",
+  "_step1": "Buka https://developer.spotify.com/dashboard dan buat app baru",
+  "_step2": "Copy Client ID dan Client Secret ke field di bawah",
+  "_step3": "Untuk refresh_token: jalankan 'node scripts/spotify-setup.js' setelah isi client_id dan client_secret",
+  "client_id": "5fb7bbb513a64e3bb1ecb61ed8f0d647",
+  "client_secret": "7ad2e6c6f04e4a2bbe7f3df720b38911",
+  "refresh_token": "ISI_REFRESH_TOKEN_DISINI"
+}

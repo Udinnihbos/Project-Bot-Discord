@@ -1,0 +1,28 @@
+{
+  "antiRaid": {
+    "enabled": false,
+    "joinThreshold": 5,
+    "joinWindowSeconds": 10,
+    "minAccountAgeDays": 3,
+    "action": "kick",
+    "autoLockdown": true,
+    "logChannelId": null
+  },
+  "antiSpam": {
+    "enabled": true,
+    "messageThreshold": 5,
+    "messageWindowSeconds": 5,
+    "duplicateThreshold": 3,
+    "mentionThreshold": 5,
+    "action": "kick",
+    "timeoutDurationMinutes": 10,
+    "deleteMessages": true,
+    "logChannelId": "1470090723595518260"
+  },
+  "whitelistUserIds": [],
+  "whitelistRoleIds": [],
+  "lockdown": {
+    "active": false,
+    "lockedChannelIds": []
+  }
+}

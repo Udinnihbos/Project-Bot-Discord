@@ -1,0 +1,58 @@
+{
+  "missions": [
+    {
+      "id": "catch_10",
+      "name": "Pemancing Pemula",
+      "emoji": "🎣",
+      "description": "Tangkap 10 ikan hari ini",
+      "type": "catch_total",
+      "target": 10,
+      "reward": 5,
+      "active": true
+    },
+    {
+      "id": "catch_rare",
+      "name": "Pemburu Ikan Langka",
+      "emoji": "🔵",
+      "description": "Tangkap 1 ikan Rare atau lebih tinggi",
+      "type": "catch_rarity",
+      "targetRarity": "Rare",
+      "target": 1,
+      "reward": 10,
+      "active": true
+    },
+    {
+      "id": "fish_25",
+      "name": "Rajin Mancing",
+      "emoji": "⏱️",
+      "description": "Mancing sebanyak 25 kali hari ini",
+      "type": "fish_count",
+      "target": 25,
+      "reward": 5,
+      "active": true
+    },
+    {
+      "id": "catch_epic",
+      "name": "Pemburu Epik",
+      "emoji": "🟣",
+      "description": "Tangkap 1 ikan Epic atau lebih tinggi",
+      "type": "catch_rarity",
+      "targetRarity": "Epic",
+      "target": 1,
+      "reward": 10,
+      "active": true
+    },
+    {
+      "id": "catch_mythic_fish",
+      "name": "Catch Mythic Fish",
+      "emoji": "🦈",
+      "description": "Dapatkan 1 ikan mythic dengan memancing",
+      "type": "catch_rarity",
+      "target": 1,
+      "reward": 55,
+      "targetRarity": "Mythic",
+      "active": true
+    }
+  ],
+  "announcementChannelId": "1481982935413555291"
+}

@@ -1,0 +1,96 @@
+{
+  "panels": {
+    "1": {
+      "id": "1",
+      "judul": "🎨 𝐂𝐔𝐒𝐓𝐎𝐌 𝐑𝐎𝐋𝐄𝐒 | Server Roles",
+      "deskripsi": "Di sini kamu bisa mengambil beberapa custom roles yang tersedia untuk menunjukkan identitas dan preferensi kamu di server.",
+      "tipe": "dropdown",
+      "color": "#e6e6fa",
+      "roles": [
+        {
+          "roleId": "1481987014067884146",
+          "label": "🎣 • 〢Pemancing",
+          "emoji": "🎣",
+          "description": null
+        }
+      ],
+      "messageId": "1523362342295834797",
+      "channelId": "1477682233828442252"
+    },
+    "2": {
+      "id": "2",
+      "judul": "🎨 𝐂𝐔𝐒𝐓𝐎𝐌 𝐑𝐎𝐋𝐄𝐒 | Game",
+      "deskripsi": "Di sini kamu bisa mengambil beberapa custom roles yang tersedia untuk menunjukkan identitas dan preferensi kamu di server.",
+      "tipe": "dropdown",
+      "color": "#3498db",
+      "roles": [
+        {
+          "roleId": "1477686709838938326",
+          "label": "🎮 • 〢Minecraft",
+          "emoji": null,
+          "description": null
+        },
+        {
+          "roleId": "1477686833331704021",
+          "label": "🎮 • 〢Mobile Legends",
+          "emoji": null,
+          "description": null
+        },
+        {
+          "roleId": "1477686447237496862",
+          "label": "🎮 • 〢Roblox",
+          "emoji": null,
+          "description": null
+        }
+      ],
+      "messageId": "1523362390706487450",
+      "channelId": "1477682233828442252"
+    },
+    "3": {
+      "id": "3",
+      "judul": "🎨 𝐂𝐔𝐒𝐓𝐎𝐌 𝐑𝐎𝐋𝐄𝐒 | Media Social",
+      "deskripsi": "Di sini kamu bisa mengambil beberapa custom roles yang tersedia untuk menunjukkan identitas dan preferensi kamu di server.",
+      "tipe": "dropdown",
+      "color": "#3498db",
+      "roles": [
+        {
+          "roleId": "1477685725439983668",
+          "label": "🎬 • 〢Youtube",
+          "emoji": null,
+          "description": null
+        },
+        {
+          "roleId": "1477685841529798827",
+          "label": "🎬 • 〢Tiktok",
+          "emoji": null,
+          "description": null
+        }
+      ],
+      "messageId": "1523362440526561512",
+      "channelId": "1477682233828442252"
+    },
+    "4": {
+      "id": "4",
+      "judul": "🎭 Ambil Role di Sini!",
+      "deskripsi": "@everyone \nSelamat datang! Sebelum mulai menjelajah server, silakan ambil role di bawah ini.\n\nDengan mengambil role, kamu akan mendapatkan akses ke channel yang sesuai. Pilih role sesuai minat atau kebutuhanmu—kamu bisa menambah atau mengubahnya kapan saja jika diizinkan.\n\n✨ Ambil role di bawah dan selamat menikmati server!",
+      "tipe": "button",
+      "color": "#3498db",
+      "roles": [
+        {
+          "roleId": "1477567506913951937",
+          "label": "👤 • 〢Member",
+          "emoji": null,
+          "description": null
+        },
+        {
+          "roleId": "1470092920043602067",
+          "label": "😎 • 〢Sikma",
+          "emoji": null,
+          "description": null
+        }
+      ],
+      "messageId": "1523503955152343062",
+      "channelId": "1477560397296041984"
+    }
+  }
+}

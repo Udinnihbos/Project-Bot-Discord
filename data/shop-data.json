@@ -1,0 +1,459 @@
+{
+  "items": [
+    {
+      "id": "ticket_lautan_kabut",
+      "name": "Tiket Lautan Berkabut",
+      "emoji": "🎟️",
+      "description": "Tiket masuk ke zona 🌫 Lautan Berkabut. Sekali pakai.",
+      "type": "ticket",
+      "zonaId": "lautan_kabut",
+      "priceCoins": 0,
+      "priceGems": 100,
+      "stock": -1
+    },
+    {
+      "id": "cacing_biasa",
+      "name": "Cacing Biasa",
+      "emoji": "🪱",
+      "description": "Umpan standar, sedikit meningkatkan luck.",
+      "type": "bait",
+      "priceCoins": 200,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "cacing_super",
+      "name": "Cacing Super",
+      "emoji": "🟤",
+      "description": "Umpan premium, boost luck lebih besar.",
+      "type": "bait",
+      "priceCoins": 800,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "umpan_rare",
+      "name": "Umpan Rare",
+      "emoji": "🔵",
+      "description": "Meningkatkan chance ikan Rare ke atas.",
+      "type": "bait",
+      "priceCoins": 2000,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "umpan_epic",
+      "name": "Umpan Epic",
+      "emoji": "🟣",
+      "description": "Meningkatkan chance ikan Epic ke atas.",
+      "type": "bait",
+      "priceCoins": 6000,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "umpan_legendary",
+      "name": "Umpan Legendary",
+      "emoji": "🟡",
+      "description": "Boost besar untuk ikan Legendary ke atas!",
+      "type": "bait",
+      "priceCoins": 20000,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "umpan_dewa",
+      "name": "Umpan Dewa",
+      "emoji": "✨",
+      "description": "Umpan paling powerful, boost semua rarity langka secara masif!",
+      "type": "bait",
+      "priceCoins": 0,
+      "priceGems": 50,
+      "stock": -1
+    },
+    {
+      "id": "lucky_charm",
+      "name": "Lucky Charm",
+      "emoji": "🍀",
+      "description": "Item sekali pakai. Boost luck +100% untuk 10 cast berikutnya.",
+      "type": "item",
+      "priceCoins": 12000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "luck_boost",
+        "value": 100,
+        "duration_casts": 10
+      }
+    },
+    {
+      "id": "lucky_charm_mega",
+      "name": "Mega Lucky Charm",
+      "emoji": "🌟",
+      "description": "Versi mega dari Lucky Charm. Boost luck +300% untuk 10 cast.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 30,
+      "stock": -1,
+      "effect": {
+        "type": "luck_boost",
+        "value": 300,
+        "duration_casts": 10
+      }
+    },
+    {
+      "id": "cooldown_potion",
+      "name": "Cooldown Potion",
+      "emoji": "⚡",
+      "description": "Reset cooldown mancing sekarang juga. Langsung bisa mancing lagi!",
+      "type": "item",
+      "priceCoins": 8000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "reset_cooldown"
+      }
+    },
+    {
+      "id": "xp_booster",
+      "name": "XP Booster",
+      "emoji": "📈",
+      "description": "XP yang didapat 2× lipat selama 30 menit.",
+      "type": "item",
+      "priceCoins": 10000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "xp_boost",
+        "multiplier": 2,
+        "duration_minutes": 30
+      }
+    },
+    {
+      "id": "xp_booster_premium",
+      "name": "XP Booster Premium",
+      "emoji": "🚀",
+      "description": "XP yang didapat 5× lipat selama 1 jam.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 20,
+      "stock": -1,
+      "effect": {
+        "type": "xp_boost",
+        "multiplier": 5,
+        "duration_minutes": 60
+      }
+    },
+    {
+      "id": "fish_magnet",
+      "name": "Fish Magnet",
+      "emoji": "🧲",
+      "description": "Tarik ikan spesifik pilihanmu! Chance tetap berlaku tapi ikan target lebih sering muncul (×5) untuk 5 cast.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 15,
+      "stock": -1,
+      "effect": {
+        "type": "fish_magnet",
+        "duration_casts": 5
+      }
+    },
+    {
+      "id": "inventory_expander",
+      "name": "Inventory Expander",
+      "emoji": "📦",
+      "description": "Tambah kapasitas inventory sebanyak 50 slot permanen.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 40,
+      "stock": -1,
+      "effect": {
+        "type": "inventory_expand",
+        "amount": 50
+      }
+    },
+    {
+      "id": "rename_token",
+      "name": "Rename Token",
+      "emoji": "✏️",
+      "description": "Ganti nama display di profilefish kamu. Sekali pakai.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 10,
+      "stock": -1,
+      "effect": {
+        "type": "rename"
+      }
+    },
+    {
+      "id": "mystery_box",
+      "name": "Mystery Box",
+      "emoji": "🎁",
+      "description": "Buka untuk dapat item random — bisa bait, coins, gems, atau item langka!",
+      "type": "item",
+      "priceCoins": 20000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "mystery_box"
+      }
+    },
+    {
+      "id": "mystery_box_premium",
+      "name": "Premium Mystery Box",
+      "emoji": "💠",
+      "description": "Versi premium mystery box, chance dapat item langka jauh lebih tinggi!",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 50,
+      "stock": -1,
+      "effect": {
+        "type": "mystery_box_premium"
+      }
+    },
+    {
+      "id": "frozen_bait",
+      "name": "Frozen Bait",
+      "emoji": "🧊",
+      "description": "Umpan beku khusus untuk ikan langka di perairan dingin. Boost Legendary+ ×4.",
+      "type": "bait",
+      "priceCoins": 35000,
+      "priceGems": 0,
+      "stock": -1
+    },
+    {
+      "id": "double_catch",
+      "name": "Double Catch Scroll",
+      "emoji": "📜",
+      "description": "Sekali mancing bisa dapat 2 ikan sekaligus! Berlaku untuk 3 cast.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 35,
+      "stock": -1,
+      "effect": {
+        "type": "double_catch",
+        "duration_casts": 3
+      }
+    },
+    {
+      "id": "radar_ikan",
+      "name": "Radar Ikan",
+      "emoji": "📡",
+      "description": "Scan zona dan tampilkan ikan apa yang paling sering muncul saat ini.",
+      "type": "item",
+      "priceCoins": 6000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "radar"
+      }
+    },
+    {
+      "id": "coins_pouch",
+      "name": "Coins Pouch",
+      "emoji": "💰",
+      "description": "Langsung dapat 10.000 coins!",
+      "type": "currency",
+      "priceCoins": 0,
+      "priceGems": 10,
+      "stock": -1,
+      "effect": {
+        "type": "give_coins",
+        "amount": 10000
+      }
+    },
+    {
+      "id": "coins_pouch_mega",
+      "name": "Mega Coins Pouch",
+      "emoji": "💎",
+      "description": "Langsung dapat 50.000 coins!",
+      "type": "currency",
+      "priceCoins": 0,
+      "priceGems": 40,
+      "stock": -1,
+      "effect": {
+        "type": "give_coins",
+        "amount": 50000
+      }
+    },
+    {
+      "id": "afk_extender",
+      "name": "AFK Extender",
+      "emoji": "⏰",
+      "description": "Tambah durasi AFK mancing maksimal jadi 15 menit untuk sesi berikutnya.",
+      "type": "item",
+      "priceCoins": 25000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "afk_extend",
+        "extra_minutes": 10
+      }
+    },
+    {
+      "id": "mutation_booster",
+      "name": "Mutation Booster",
+      "emoji": "🧬",
+      "description": "Tingkatkan chance mutasi ikan 3× untuk 10 cast berikutnya.",
+      "type": "item",
+      "priceCoins": 18000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "mutation_boost",
+        "multiplier": 3,
+        "duration_casts": 10
+      }
+    },
+    {
+      "id": "time_warp",
+      "name": "Time Warp",
+      "emoji": "⏳",
+      "description": "Reset cooldown mancing untuk semua member di server selama 5 menit! (Admin use only)",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 100,
+      "stock": -1,
+      "effect": {
+        "type": "server_cooldown_reset",
+        "duration_minutes": 5
+      }
+    },
+    {
+      "id": "luck_elixir",
+      "name": "Luck Elixir",
+      "emoji": "🧪",
+      "description": "Tingkatkan luck permanen sebesar +10 untuk 1 jam. Stack dengan item luck lainnya.",
+      "type": "item",
+      "priceCoins": 30000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "luck_boost",
+        "value": 10,
+        "duration_minutes": 60
+      }
+    },
+    {
+      "id": "golden_rod_polish",
+      "name": "Golden Rod Polish",
+      "emoji": "✨",
+      "description": "Poles pancinganmu! Tingkatkan luck rod aktif sebesar +50 sementara selama 30 menit.",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 45,
+      "stock": -1,
+      "effect": {
+        "type": "rod_luck_boost",
+        "value": 50,
+        "duration_minutes": 30
+      }
+    },
+    {
+      "id": "exp_crystal",
+      "name": "EXP Crystal",
+      "emoji": "💠",
+      "description": "Langsung tambah 500 XP ke level kamu!",
+      "type": "item",
+      "priceCoins": 50000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "give_xp",
+        "amount": 500
+      }
+    },
+    {
+      "id": "mega_exp_crystal",
+      "name": "Mega EXP Crystal",
+      "emoji": "🔷",
+      "description": "Langsung tambah 2000 XP ke level kamu!",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 75,
+      "stock": -1,
+      "effect": {
+        "type": "give_xp",
+        "amount": 2000
+      }
+    },
+    {
+      "id": "zone_scanner",
+      "name": "Zone Scanner",
+      "emoji": "🛸",
+      "description": "Scan semua zona aktif dan tampilkan ikan apa yang paling sering muncul saat ini beserta cuacanya.",
+      "type": "item",
+      "priceCoins": 15000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "zone_scan"
+      }
+    },
+    {
+      "id": "fish_encyclopedia",
+      "name": "Fish Encyclopedia",
+      "emoji": "📚",
+      "description": "Reveal 5 ikan yang belum pernah kamu temukan di /fishindex. Kamu jadi tahu ikan apa saja yang masih bisa dicari!",
+      "type": "item",
+      "priceCoins": 25000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "reveal_fish",
+        "amount": 5
+      }
+    },
+    {
+      "id": "elite_bait_pack",
+      "name": "Elite Bait Pack",
+      "emoji": "🎣",
+      "description": "Paket umpan elite: 3x Umpan Legendary + 1x Umpan Dewa!",
+      "type": "item",
+      "priceCoins": 0,
+      "priceGems": 60,
+      "stock": -1,
+      "effect": {
+        "type": "bait_pack",
+        "contents": [
+          {
+            "id": "umpan_legendary",
+            "amount": 3
+          },
+          {
+            "id": "umpan_dewa",
+            "amount": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "coins_vault",
+      "name": "Coins Vault",
+      "emoji": "🏦",
+      "description": "Langsung dapat 200.000 coins!",
+      "type": "currency",
+      "priceCoins": 0,
+      "priceGems": 150,
+      "stock": -1,
+      "effect": {
+        "type": "give_coins",
+        "amount": 200000
+      }
+    },
+    {
+      "id": "gem_bundle",
+      "name": "Gem Bundle",
+      "emoji": "💎",
+      "description": "Dapat 20 gems dengan harga coins yang lebih terjangkau.",
+      "type": "currency",
+      "priceCoins": 80000,
+      "priceGems": 0,
+      "stock": -1,
+      "effect": {
+        "type": "give_gems",
+        "amount": 20
+      }
+    }
+  ]
+}

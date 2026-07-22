@@ -1,0 +1,4 @@
+node_modules/
+.env
+data/yt-cookies.txt
+data/players.json

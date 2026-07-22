@@ -1,0 +1,572 @@
+{
+  "fish": [
+    {
+      "id": "ikan_mas",
+      "name": "Ikan Mas",
+      "emoji": "🐟",
+      "rarity": "Common",
+      "chance": 100,
+      "price": 50,
+      "description": "Ikan yang paling sering ditemukan di sungai."
+    },
+    {
+      "id": "ikan_lele",
+      "name": "Ikan Lele",
+      "emoji": "🐠",
+      "rarity": "Common",
+      "chance": 90,
+      "price": 60,
+      "description": "Ikan berkumis yang hidup di dasar sungai."
+    },
+    {
+      "id": "ikan_nila",
+      "name": "Ikan Nila",
+      "emoji": "🐡",
+      "rarity": "Common",
+      "chance": 80,
+      "price": 75,
+      "description": "Ikan air tawar yang populer di kolam."
+    },
+    {
+      "id": "ikan_gurame",
+      "name": "Ikan Gurame",
+      "emoji": "🐟",
+      "rarity": "Uncommon",
+      "chance": 50,
+      "price": 150,
+      "description": "Ikan air tawar dengan daging yang lezat."
+    },
+    {
+      "id": "ikan_bawal",
+      "name": "Ikan Bawal",
+      "emoji": "🐠",
+      "rarity": "Uncommon",
+      "chance": 45,
+      "price": 175,
+      "description": "Ikan pipih dengan sisik yang mengkilap."
+    },
+    {
+      "id": "ikan_patin",
+      "name": "Ikan Patin",
+      "emoji": "🐡",
+      "rarity": "Uncommon",
+      "chance": 40,
+      "price": 200,
+      "description": "Ikan sungai berukuran besar yang lezat."
+    },
+    {
+      "id": "ikan_kakap",
+      "name": "Ikan Kakap Merah",
+      "emoji": "🐟",
+      "rarity": "Rare",
+      "chance": 20,
+      "price": 400,
+      "description": "Ikan laut berwarna merah yang berharga."
+    },
+    {
+      "id": "ikan_kerapu",
+      "name": "Ikan Kerapu",
+      "emoji": "🐠",
+      "rarity": "Rare",
+      "chance": 15,
+      "price": 500,
+      "description": "Ikan karang dengan bintik-bintik unik."
+    },
+    {
+      "id": "ikan_tengiri",
+      "name": "Ikan Tengiri",
+      "emoji": "🐡",
+      "rarity": "Rare",
+      "chance": 12,
+      "price": 600,
+      "description": "Ikan laut yang berenang sangat cepat."
+    },
+    {
+      "id": "ikan_napoleon",
+      "name": "Ikan Napoleon",
+      "emoji": "🐟",
+      "rarity": "Epic",
+      "chance": 7,
+      "price": 1200,
+      "description": "Ikan karang raksasa dengan bibir tebal."
+    },
+    {
+      "id": "ikan_arwana",
+      "name": "Ikan Arwana",
+      "emoji": "🐠",
+      "rarity": "Epic",
+      "chance": 5,
+      "price": 1500,
+      "description": "Ikan naga yang membawa keberuntungan."
+    },
+    {
+      "id": "ikan_marlin",
+      "name": "Ikan Marlin",
+      "emoji": "🐡",
+      "rarity": "Epic",
+      "chance": 4,
+      "price": 1800,
+      "description": "Ikan billfish raksasa yang hebat untuk dipancing."
+    },
+    {
+      "id": "ikan_tuna_biru",
+      "name": "Ikan Tuna Biru",
+      "emoji": "🐟",
+      "rarity": "Legendary",
+      "chance": 2,
+      "price": 4000,
+      "description": "Raja tuna yang legendaris dari lautan dalam."
+    },
+    {
+      "id": "ikan_coelacanth",
+      "name": "Ikan Coelacanth",
+      "emoji": "🐠",
+      "rarity": "Legendary",
+      "chance": 1,
+      "price": 6000,
+      "description": "Fosil hidup dari era purba yang sangat langka."
+    },
+    {
+      "id": "ikan_oarfish",
+      "name": "Ikan Oarfish",
+      "emoji": "🐡",
+      "rarity": "Legendary",
+      "chance": 1,
+      "price": 7000,
+      "description": "Ikan ular laut raksasa yang jarang terlihat."
+    },
+    {
+      "id": "ikan_paus_mini",
+      "name": "Paus Mini",
+      "emoji": "🐳",
+      "rarity": "Mythic",
+      "chance": 0.3,
+      "price": 15000,
+      "description": "Paus kecil yang sangat langka, hampir tidak pernah ditangkap."
+    },
+    {
+      "id": "ikan_naga_laut",
+      "name": "Naga Laut",
+      "emoji": "🐉",
+      "rarity": "Mythic",
+      "chance": 0.2,
+      "price": 20000,
+      "description": "Makhluk mistis lautan yang hampir menjadi legenda."
+    },
+    {
+      "id": "ikan_kraken_baby",
+      "name": "Baby Kraken",
+      "emoji": "🦑",
+      "rarity": "Mythic",
+      "chance": 0.1,
+      "price": 25000,
+      "description": "Anak kraken yang tersesat ke permukaan laut."
+    },
+    {
+      "id": "ikan_dewa",
+      "name": "Ikan Dewa",
+      "emoji": "✨",
+      "rarity": "Secret",
+      "chance": 0.05,
+      "price": 99999,
+      "description": "Ikan legendaris yang konon hanya muncul sekali dalam 1000 tahun."
+    },
+    {
+      "id": "ikan_phantom",
+      "name": "Phantom Fish",
+      "emoji": "👻",
+      "rarity": "Secret",
+      "chance": 0.02,
+      "price": 150000,
+      "description": "Ikan yang tidak seharusnya ada. Tidak ada yang tahu dari mana asalnya..."
+    },
+    {
+      "id": "1",
+      "name": "ElShark Grand Maja",
+      "emoji": "🦈",
+      "rarity": "Secret",
+      "chance": 0.02,
+      "price": 5000,
+      "description": "Ikan Hiu Misterius"
+    },
+    {
+      "id": "ikan_gabus",
+      "name": "Ikan Gabus",
+      "emoji": "🐟",
+      "rarity": "Common",
+      "chance": 85,
+      "price": 50,
+      "description": "Ikan air tawar yang sering ditemukan di danau hutan."
+    },
+    {
+      "id": "ikan_betok",
+      "name": "Ikan Betok",
+      "emoji": "🫧",
+      "rarity": "Common",
+      "chance": 75,
+      "price": 60,
+      "description": "Ikan kecil berbintik yang hidup di perairan dangkal Elderwood."
+    },
+    {
+      "id": "ikan_toman",
+      "name": "Ikan Toman",
+      "emoji": "🐊",
+      "rarity": "Uncommon",
+      "chance": 35,
+      "price": 250,
+      "description": "Predator danau yang agresif, dikenal sebagai raja air tawar."
+    },
+    {
+      "id": "ikan_belida",
+      "name": "Ikan Belida",
+      "emoji": "🔪",
+      "rarity": "Uncommon",
+      "chance": 28,
+      "price": 320,
+      "description": "Ikan pipih bertubuh panjang seperti pisau, langka di perairan Elderwood."
+    },
+    {
+      "id": "ikan_arwana_hijau",
+      "name": "Arwana Hijau",
+      "emoji": "💚",
+      "rarity": "Rare",
+      "chance": 10,
+      "price": 1200,
+      "description": "Varian arwana hijau zamrud yang hanya hidup di danau hutan terpencil."
+    },
+    {
+      "id": "ikan_lele_raksasa",
+      "name": "Lele Raksasa",
+      "emoji": "🐋",
+      "rarity": "Rare",
+      "chance": 8,
+      "price": 1500,
+      "description": "Lele berukuran luar biasa besar yang bersembunyi di dasar danau Elderwood."
+    },
+    {
+      "id": "ikan_siluman_air",
+      "name": "Ikan Siluman Air",
+      "emoji": "👻",
+      "rarity": "Epic",
+      "chance": 3,
+      "price": 5000,
+      "description": "Ikan transparan yang hampir tidak terlihat di air. Konon membawa keberuntungan."
+    },
+    {
+      "id": "ikan_elderwood",
+      "name": "Ikan Elderwood",
+      "emoji": "🌳",
+      "rarity": "Legendary",
+      "chance": 0.5,
+      "price": 18000,
+      "description": "Ikan penjaga Elderwood Lake, sisiknya bermotif seperti kulit pohon tua."
+    },
+    {
+      "id": "ikan_jiwa_hutan",
+      "name": "Jiwa Hutan",
+      "emoji": "🌑",
+      "rarity": "Secret",
+      "chance": 0.03,
+      "price": 120000,
+      "description": "Entitas misterius berbentuk ikan yang muncul saat bulan gelap di Elderwood. Tidak ada yang tahu asalnya."
+    },
+    {
+      "id": "ikan_dewa_danau",
+      "name": "Dewa Danau",
+      "emoji": "🪷",
+      "rarity": "Secret",
+      "chance": 0.01,
+      "price": 250000,
+      "description": "Ikan suci yang dipercaya sebagai penjaga spiritual Elderwood Lake. Sangat jarang muncul."
+    },
+    {
+      "id": "ikan_kabut",
+      "name": "Ikan Hantu",
+      "emoji": "👻",
+      "rarity": "Common",
+      "chance": 1,
+      "price": 150,
+      "description": "..."
+    },
+    {
+      "id": "paus_hantu",
+      "name": "Paus Hantu",
+      "emoji": "🐋",
+      "rarity": "Mythic",
+      "chance": 0.1,
+      "price": 3200,
+      "description": "..."
+    },
+    {
+      "id": "haunea_hantu",
+      "name": "Haunea Fish",
+      "emoji": "🫧",
+      "rarity": "Secret",
+      "chance": 9.999999999999999e-05,
+      "price": 10000,
+      "description": "..."
+    },
+    {
+      "id": "megalodon",
+      "name": "Megalodon",
+      "emoji": "🦈",
+      "rarity": "Secret",
+      "chance": 3.3333333333333335e-05,
+      "price": 50,
+      "description": "Ikan hiu kuno yang memilikimu ukuran tubuh yang sangat besar dari hiu biasanya."
+    },
+    {
+      "id": "sepatu",
+      "name": "Sepatu",
+      "emoji": "👢",
+      "rarity": "Common",
+      "chance": 1,
+      "price": 120,
+      "description": "Sepatu yang telah jatuh ke air."
+    },
+    {
+      "id": "ikan_mujair",
+      "name": "Ikan Mujair",
+      "emoji": "🐠",
+      "rarity": "Common",
+      "chance": 88,
+      "price": 45,
+      "description": "Ikan air tawar yang sangat umum, mudah didapat di mana saja."
+    },
+    {
+      "id": "ikan_sepat",
+      "name": "Ikan Sepat",
+      "emoji": "🐟",
+      "rarity": "Common",
+      "chance": 82,
+      "price": 55,
+      "description": "Ikan kecil bersisik halus yang sering berenang di permukaan."
+    },
+    {
+      "id": "ikan_wader",
+      "name": "Ikan Wader",
+      "emoji": "🫧",
+      "rarity": "Common",
+      "chance": 78,
+      "price": 40,
+      "description": "Ikan sungai mungil yang selalu bergerombol."
+    },
+    {
+      "id": "ikan_bandeng",
+      "name": "Ikan Bandeng",
+      "emoji": "🐡",
+      "rarity": "Common",
+      "chance": 70,
+      "price": 80,
+      "description": "Ikan populer dengan duri yang banyak, tapi rasanya lezat."
+    },
+    {
+      "id": "ikan_baung",
+      "name": "Ikan Baung",
+      "emoji": "🦈",
+      "rarity": "Uncommon",
+      "chance": 38,
+      "price": 280,
+      "description": "Ikan sungai berjanggut yang aktif di malam hari."
+    },
+    {
+      "id": "ikan_tagih",
+      "name": "Ikan Tagih",
+      "emoji": "🐬",
+      "rarity": "Uncommon",
+      "chance": 32,
+      "price": 310,
+      "description": "Ikan liar yang dikenal gesit dan susah ditangkap."
+    },
+    {
+      "id": "ikan_sidat",
+      "name": "Ikan Sidat",
+      "emoji": "🐍",
+      "rarity": "Uncommon",
+      "chance": 25,
+      "price": 420,
+      "description": "Ikan berbentuk seperti belut yang hidup di muara sungai."
+    },
+    {
+      "id": "ikan_sembilang",
+      "name": "Ikan Sembilang",
+      "emoji": "⚫",
+      "rarity": "Uncommon",
+      "chance": 22,
+      "price": 380,
+      "description": "Ikan hitam pekat yang bersembunyi di lumpur dasar sungai."
+    },
+    {
+      "id": "ikan_kurisi",
+      "name": "Ikan Kurisi",
+      "emoji": "🌸",
+      "rarity": "Rare",
+      "chance": 11,
+      "price": 1100,
+      "description": "Ikan laut berwarna merah muda cantik yang jarang muncul ke permukaan."
+    },
+    {
+      "id": "ikan_kakap_putih",
+      "name": "Kakap Putih",
+      "emoji": "⬜",
+      "rarity": "Rare",
+      "chance": 9,
+      "price": 1400,
+      "description": "Varian kakap berwarna putih perak yang lebih langka dari kakap merah."
+    },
+    {
+      "id": "ikan_barakuda",
+      "name": "Ikan Barakuda",
+      "emoji": "⚡",
+      "rarity": "Rare",
+      "chance": 7,
+      "price": 1800,
+      "description": "Predator laut cepat dengan gigi tajam seperti pisau."
+    },
+    {
+      "id": "ikan_layur",
+      "name": "Ikan Layur",
+      "emoji": "🗡️",
+      "rarity": "Rare",
+      "chance": 6,
+      "price": 2000,
+      "description": "Ikan panjang pipih seperti pedang yang hidup di laut dalam."
+    },
+    {
+      "id": "ikan_sunfish",
+      "name": "Mola Mola",
+      "emoji": "☀️",
+      "rarity": "Epic",
+      "chance": 2.5,
+      "price": 6500,
+      "description": "Ikan terbesar di dunia berbentuk bulat aneh, sangat langka ditemukan."
+    },
+    {
+      "id": "ikan_arapaima",
+      "name": "Arapaima",
+      "emoji": "🦕",
+      "rarity": "Epic",
+      "chance": 2.0,
+      "price": 7500,
+      "description": "Ikan purba raksasa dari Amazon yang entah bagaimana muncul di sini."
+    },
+    {
+      "id": "ikan_swordfish",
+      "name": "Ikan Pedang",
+      "emoji": "🤺",
+      "rarity": "Epic",
+      "chance": 1.5,
+      "price": 9000,
+      "description": "Ikan laut dengan moncong panjang seperti pedang, sangat kencang berenang."
+    },
+    {
+      "id": "ikan_sturgeon",
+      "name": "Ikan Sturgeon",
+      "emoji": "🏺",
+      "rarity": "Epic",
+      "chance": 1.2,
+      "price": 11000,
+      "description": "Ikan kuno penghasil kaviar yang sudah ada sejak zaman dinosaurus."
+    },
+    {
+      "id": "ikan_megamouth",
+      "name": "Megamouth Shark",
+      "emoji": "👄",
+      "rarity": "Legendary",
+      "chance": 0.4,
+      "price": 22000,
+      "description": "Hiu bermulut raksasa yang sangat jarang terlihat, hidup di kedalaman ekstrem."
+    },
+    {
+      "id": "ikan_goblin",
+      "name": "Goblin Shark",
+      "emoji": "👺",
+      "rarity": "Legendary",
+      "chance": 0.3,
+      "price": 28000,
+      "description": "Hiu hantu berparuh panjang dari kedalaman laut yang gelap."
+    },
+    {
+      "id": "ikan_lancetfish",
+      "name": "Lancetfish",
+      "emoji": "🔱",
+      "rarity": "Legendary",
+      "chance": 0.2,
+      "price": 35000,
+      "description": "Ikan predator dalam laut dengan sirip punggung seperti layar raksasa."
+    },
+    {
+      "id": "ikan_anglerfish",
+      "name": "Deep Anglerfish",
+      "emoji": "🔦",
+      "rarity": "Mythic",
+      "chance": 0.08,
+      "price": 85000,
+      "description": "Ikan abyss dengan lentera bercahaya di kepalanya. Muncul dari kegelapan terdalam."
+    },
+    {
+      "id": "ikan_dragonfish",
+      "name": "Dragonfish",
+      "emoji": "🐲",
+      "rarity": "Mythic",
+      "chance": 0.05,
+      "price": 130000,
+      "description": "Ikan naga dari kedalaman laut dengan tubuh transparan dan gigi seperti kristal."
+    },
+    {
+      "id": "ikan_void",
+      "name": "Void Fish",
+      "emoji": "🌌",
+      "rarity": "Secret",
+      "chance": 0.008,
+      "price": 500000,
+      "description": "Ikan yang berasal dari dimensi lain. Tubuhnya seperti lubang hitam berjalan."
+    },
+    {
+      "id": "ikan_celestial",
+      "name": "Celestial Fish",
+      "emoji": "✨",
+      "rarity": "Secret",
+      "chance": 0.005,
+      "price": 750000,
+      "description": "Konon ikan ini adalah bintang yang jatuh ke laut dan berubah wujud. Amat sangat langka."
+    }
+  ],
+  "rarityConfig": {
+    "Common": {
+      "color": "#95a5a6",
+      "emoji": "⚪",
+      "multiplier": 1
+    },
+    "Uncommon": {
+      "color": "#2ecc71",
+      "emoji": "🟢",
+      "multiplier": 1
+    },
+    "Rare": {
+      "color": "#3498db",
+      "emoji": "🔵",
+      "multiplier": 1
+    },
+    "Epic": {
+      "color": "#9b59b6",
+      "emoji": "🟣",
+      "multiplier": 1
+    },
+    "Legendary": {
+      "color": "#f39c12",
+      "emoji": "🟡",
+      "multiplier": 1
+    },
+    "Mythic": {
+      "color": "#e74c3c",
+      "emoji": "🔴",
+      "multiplier": 1
+    },
+    "Secret": {
+      "color": "#1a1a2e",
+      "emoji": "⭐",
+      "multiplier": 1
+    }
+  }
+}

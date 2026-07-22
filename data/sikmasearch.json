@@ -1,0 +1,13 @@
+{
+  "1469908163707928724": {
+    "enabled": false,
+    "channelId": "1470090723595518260",
+    "searchMode": "smart",
+    "safeSearch": true,
+    "maxResults": 3,
+    "sources": {
+      "google": true,
+      "brave": true
+    }
+  }
+}

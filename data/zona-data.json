@@ -1,0 +1,89 @@
+{
+  "zonas": {
+    "fisherman_island": {
+      "id": "fisherman_island",
+      "nama": "Fisherman Island",
+      "emoji": "🎣",
+      "deskripsi": "Tempat para pemancing",
+      "color": "#3498db",
+      "channelId": "1481966404428107796",
+      "fish": [
+        "ikan_mas",
+        "ikan_lele",
+        "ikan_nila",
+        "ikan_gurame",
+        "ikan_bawal",
+        "ikan_patin",
+        "ikan_kakap",
+        "ikan_kerapu",
+        "ikan_tengiri",
+        "ikan_napoleon",
+        "ikan_arwana",
+        "ikan_marlin",
+        "ikan_tuna_biru",
+        "ikan_coelacanth",
+        "ikan_oarfish",
+        "ikan_paus_mini",
+        "ikan_naga_laut",
+        "ikan_kraken_baby",
+        "ikan_dewa",
+        "ikan_phantom"
+      ],
+      "createdAt": 1773531462073,
+      "tempFish": []
+    },
+    "elderwood_lake": {
+      "id": "elderwood_lake",
+      "nama": "Elderwood Lake",
+      "emoji": "🌿",
+      "deskripsi": "Hutan dengan danau didalamnya, beberapa ikan misterius ada disini..",
+      "color": "#3498db",
+      "channelId": "1482522309578461366",
+      "fish": [
+        "ikan_gabus",
+        "ikan_betok",
+        "ikan_toman",
+        "ikan_belida",
+        "ikan_arwana_hijau",
+        "ikan_lele_raksasa",
+        "ikan_siluman_air",
+        "ikan_elderwood",
+        "ikan_jiwa_hutan",
+        "ikan_dewa_danau"
+      ],
+      "createdAt": 1773532944414
+    },
+    "lautan_kabut": {
+      "id": "lautan_kabut",
+      "nama": "Lautan Berkabut",
+      "emoji": "🌫",
+      "deskripsi": "Lautan dengan tingkat bahaya yang tinggi, tidak semua orang bisa memancing disini.",
+      "color": "#3498db",
+      "channelId": "1482790303801807084",
+      "fish": [
+        "ikan_kabut",
+        "paus_hantu",
+        "haunea_hantu",
+        "sepatu"
+      ],
+      "createdAt": 1773595290970,
+      "restricted": true
+    },
+    "lautan_lepas": {
+      "id": "lautan_lepas",
+      "nama": "Lautan Lepas",
+      "emoji": "🌊",
+      "deskripsi": "Lautan dengan kedalaman air yang sangat sangat dalam.",
+      "color": "#3498db",
+      "channelId": "1482703346191040766",
+      "fish": [
+        "sepatu",
+        "ikan_gurame",
+        "ikan_kerapu",
+        "ikan_tuna_biru"
+      ],
+      "createdAt": 1773596107163,
+      "tempFish": []
+    }
+  }
+}

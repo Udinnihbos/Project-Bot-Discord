@@ -1,0 +1,146 @@
+{
+  "rods": [
+    {
+      "id": "pancing_bambu",
+      "name": "Pancing Bambu",
+      "emoji": "🎋",
+      "description": "Pancingan paling basic, terbuat dari bambu tua.",
+      "price": 0,
+      "luckBonus": 0,
+      "cooldownReduction": 0,
+      "isDefault": true
+    },
+    {
+      "id": "pancing_kayu",
+      "name": "Pancing Kayu",
+      "emoji": "🪵",
+      "description": "Pancingan kayu biasa, sedikit lebih baik dari bambu.",
+      "price": 2000,
+      "luckBonus": 8,
+      "cooldownReduction": 1,
+      "isDefault": true
+    },
+    {
+      "id": "pancing_besi",
+      "name": "Pancing Besi",
+      "emoji": "⚙️",
+      "description": "Pancingan besi yang kokoh, mulai terasa perbedaannya.",
+      "price": 8000,
+      "luckBonus": 20,
+      "cooldownReduction": 2,
+      "isDefault": true
+    },
+    {
+      "id": "pancing_emas",
+      "name": "Pancing Emas",
+      "emoji": "✨",
+      "description": "Pancingan emas berkilau, ikan langka lebih sering mendekat.",
+      "price": 35000,
+      "luckBonus": 40,
+      "cooldownReduction": 3,
+      "isDefault": true
+    },
+    {
+      "id": "pancing_kristal",
+      "name": "Pancing Kristal",
+      "emoji": "💎",
+      "description": "Pancingan kristal ajaib, para pemancing pro mengincarnya.",
+      "price": 120000,
+      "luckBonus": 75,
+      "cooldownReduction": 5,
+      "isDefault": true
+    },
+    {
+      "id": "pancing_dewa",
+      "name": "Pancing Dewa",
+      "emoji": "🌟",
+      "description": "Pancingan milik para dewa, hanya yang terpilih yang layak memakainya.",
+      "price": 500000,
+      "luckBonus": 130,
+      "cooldownReduction": 7,
+      "isDefault": true
+    },
+    {
+      "id": "12",
+      "name": "Sikma Rod",
+      "emoji": "🥶",
+      "description": "Rod Sikma yang bisa membuat secret merana",
+      "price": 1000000,
+      "luckBonus": 85,
+      "cooldownReduction": 3,
+      "isDefault": false
+    },
+    {
+      "id": "pancing_level20",
+      "name": "Pancing Pemula Sejati",
+      "emoji": "🌿",
+      "description": "Hadiah level 20. Semangat terus!",
+      "price": 0,
+      "luckBonus": 60,
+      "cooldownReduction": 3,
+      "mutationMultiplier": 1,
+      "isDefault": false,
+      "isLevelReward": true
+    },
+    {
+      "id": "pancing_level30",
+      "name": "Pancing Veteran",
+      "emoji": "⚔️",
+      "description": "Hadiah level 30. Kamu sudah berpengalaman!",
+      "price": 0,
+      "luckBonus": 120,
+      "cooldownReduction": 4,
+      "mutationMultiplier": 1.2,
+      "isDefault": false,
+      "isLevelReward": true
+    },
+    {
+      "id": "pancing_level40",
+      "name": "Pancing Master",
+      "emoji": "🏅",
+      "description": "Hadiah level 40. Master pemancing!",
+      "price": 0,
+      "luckBonus": 200,
+      "cooldownReduction": 5,
+      "mutationMultiplier": 1.5,
+      "isDefault": false,
+      "isLevelReward": true
+    },
+    {
+      "id": "pancing_level50",
+      "name": "Pancing Legenda",
+      "emoji": "🔱",
+      "description": "Hadiah level 50. Legenda pemancing!",
+      "price": 0,
+      "luckBonus": 300,
+      "cooldownReduction": 6,
+      "mutationMultiplier": 2,
+      "isDefault": false,
+      "isLevelReward": true
+    },
+    {
+      "id": "pancing_level60",
+      "name": "Pancing Grandmaster",
+      "emoji": "👑",
+      "description": "Hadiah level 60. Grandmaster!",
+      "price": 0,
+      "luckBonus": 380,
+      "cooldownReduction": 7,
+      "mutationMultiplier": 2.5,
+      "isDefault": false,
+      "isLevelReward": true
+    },
+    {
+      "id": "pancing_max",
+      "name": "Pancing MAX ✨",
+      "emoji": "🌟",
+      "description": "Hadiah MAX LEVEL 65! Hanya yang terpilih.",
+      "price": 0,
+      "luckBonus": 420,
+      "cooldownReduction": 7,
+      "mutationMultiplier": 3,
+      "isDefault": false,
+      "isLevelReward": true
+    }
+  ]
+}

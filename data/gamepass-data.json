@@ -1,0 +1,36 @@
+{
+  "gamepasses": [
+    {
+      "id": "starter_pack",
+      "name": "Starter Pack",
+      "emoji": "🎁",
+      "description": "Paket pemula untuk memulai petualangan memancingmu!",
+      "price": 100,
+      "type": "duration",
+      "durationDays": 30,
+      "perks": [
+        "2x Coins dari jual ikan"
+      ],
+      "unlockAfk": false,
+      "active": true,
+      "createdAt": 1773467792485
+    },
+    {
+      "id": "afk_fish",
+      "name": "AFK Mancing Gamepass",
+      "emoji": "🦈",
+      "description": "Kamu dapat afk mancing dengan membeli gamepass ini!",
+      "price": 400,
+      "type": "duration",
+      "durationDays": 15,
+      "perks": [
+        "Akses fitur eksklusif"
+      ],
+      "unlockAfk": true,
+      "active": true,
+      "availableUntil": null,
+      "createdAt": 1773469038990
+    }
+  ],
+  "announcementChannelId": "1481982935413555291"
+}

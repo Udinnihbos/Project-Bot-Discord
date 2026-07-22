@@ -1,0 +1,16 @@
+=== CARA SETUP YOUTUBE COOKIES ===
+
+Error "Sign in to confirm you're not a bot" terjadi karena YouTube memblokir request dari server.
+Solusinya adalah menggunakan cookies dari akun YouTube kamu.
+
+LANGKAH-LANGKAH:
+1. Install extension "Get cookies.txt LOCALLY" di Chrome/Firefox
+2. Buka https://www.youtube.com dan login ke akun Google kamu
+3. Klik extension tersebut dan export cookies untuk youtube.com
+4. Simpan isi cookies tersebut ke file: data/yt-cookies.txt
+5. Restart bot
+
+CATATAN:
+- Gunakan akun Google biasa (bukan akun penting)
+- Cookies akan expire setelah beberapa waktu, perlu diperbarui
+- File yt-cookies.txt sudah ada di .gitignore (jangan di-commit)

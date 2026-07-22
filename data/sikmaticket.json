@@ -1,0 +1,41 @@
+{
+  "1469908163707928724": {
+    "ticketCounter": 1,
+    "staffRoles": [],
+    "transcriptChannelId": null,
+    "maxTicketsPerUser": 1,
+    "panels": [
+      {
+        "id": "mrrck6ohgath",
+        "name": "Suggestion",
+        "description": "Kamu dapat bertanya disini",
+        "embedColor": "#5865F2",
+        "thumbnail": "",
+        "imageUrl": "",
+        "footer": "",
+        "channelId": "1525864971865423983",
+        "messageId": "1528270569148252176",
+        "autoUpdate": false,
+        "displayType": "button",
+        "ticketTypes": [
+          {
+            "id": "mrrckvwy7d5k",
+            "name": "Suggestion",
+            "emoji": "❓",
+            "description": "Kamu dapat bertanya disini",
+            "buttonStyle": "Primary",
+            "categoryId": "1525864415579344917",
+            "mentionRoles": [
+              "1470092453032886325"
+            ],
+            "mentionText": "Halo {roles}! Ada tiket baru dari {user}.",
+            "welcomeMessage": "Halo {user}! Tim kami akan segera membantu.",
+            "order": 0
+          }
+        ],
+        "order": 0
+      }
+    ],
+    "activeTickets": {}
+  }
+}
