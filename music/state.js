@@ -11,6 +11,7 @@ const STATE_PATH = join(__dirname, '../data/music-state.json');
  *   [guildId]: {
  *     queue: Track[],          // pending songs
  *     currentSong: Track|null, // currently playing
+ *     currentStartedAt: number, // ms epoch when current started
  *     loop: 'off' | 'song' | 'queue',
  *     volume: number,          // 0..200
  *     textChannelId: string|null,
@@ -36,6 +37,7 @@ export function getGuildState(guildId) {
     all[guildId] = {
       queue: [],
       currentSong: null,
+      currentStartedAt: null,
       loop: 'off',
       volume: 100,
       textChannelId: null,

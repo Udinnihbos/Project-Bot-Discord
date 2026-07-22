@@ -17,6 +17,19 @@ export function buildNowPlayingEmbed(guild, song, state) {
   const paused = isPaused(guild.id);
   const loopLabel = state.loop === 'song' ? '🔂 Lagu' : state.loop === 'queue' ? '🔁 Queue' : '➡️ Off';
 
+  // Calculate elapsed time from currentStartedAt
+  let elapsed = 0;
+  if (state.currentStartedAt) {
+    elapsed = Math.floor((Date.now() - state.currentStartedAt) / 1000);
+    if (paused) {
+      // When paused, freeze the displayed time
+      // We don't track when pause started, so just show "paused" indicator
+    }
+  }
+  if (paused) elapsed = 0; // reset on pause
+  const total = song.duration || 0;
+  const display = Math.min(elapsed, total);
+
   const embed = new EmbedBuilder()
     .setColor(paused ? WARN : ACCENT)
     .setAuthor({ name: `${guild.name} • Now Playing`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
@@ -24,8 +37,8 @@ export function buildNowPlayingEmbed(guild, song, state) {
     .setURL(song.url)
     .setDescription(
       [
-        progressBar(0, song.duration),
-        `\`0:00 / ${formatDuration(song.duration)}\``,
+        progressBar(display, total),
+        `\`${formatDuration(display)} / ${formatDuration(total)}\``,
         '',
         `> 🎤 **Requester:** <@${state._requestedById || 'unknown'}>`,
         `> 📡 **Source:** ${song.source === 'spotify' ? 'Spotify (via YouTube)' : 'YouTube'}`,

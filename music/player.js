@@ -23,10 +23,13 @@ function setLive(guildId, obj) { live.set(guildId, obj); }
 function dropLive(guildId) { live.delete(guildId); }
 
 function formatDuration(sec) {
-  if (!sec || sec < 0) return 'LIVE';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = Math.floor(sec % 60);
+  if (sec == null || sec === undefined) return '0:00';
+  if (typeof sec === 'number' && (sec < 0 || !isFinite(sec))) return 'LIVE';
+  const n = Math.floor(sec);
+  if (n === 0) return '0:00';
+  const h = Math.floor(n / 3600);
+  const m = Math.floor((n % 3600) / 60);
+  const s = n % 60;
   if (h) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
@@ -78,6 +81,7 @@ function buildPlayer(guildId) {
     }
 
     state.currentSong = null;
+    state.currentStartedAt = null;
     advance(guildId).catch(e => console.error('advance err:', e.message));
   });
 
@@ -85,6 +89,7 @@ function buildPlayer(guildId) {
     console.error(`[${guildId}] player error:`, err.message);
     const state = getGuildState(guildId);
     state.currentSong = null;
+    state.currentStartedAt = null;
     advance(guildId).catch(() => {});
   });
 
@@ -104,6 +109,7 @@ async function advance(guildId) {
 
   const next = state.queue.shift();
   state.currentSong = next;
+  state.currentStartedAt = Date.now();
   patchGuildState(guildId, state);
 
   try {
@@ -219,6 +225,7 @@ export function stop(guildId) {
   const state = getGuildState(guildId);
   state.queue = [];
   state.currentSong = null;
+  state.currentStartedAt = null;
   patchGuildState(guildId, state);
   if (live0) {
     live0.player.stop();

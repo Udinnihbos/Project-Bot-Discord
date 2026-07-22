@@ -8,7 +8,9 @@ import {
   getMusicConfig, saveMusicConfig,
 } from '../music/config.js';
 import { getGuildState, patchGuildState } from '../music/state.js';
-import { setLoop, setVolume } from '../music/player.js';
+import { setLoop, setVolume, getPlayerStatus, formatDuration, isPaused } from '../music/player.js';
+import { getFavorites } from '../music/favorites.js';
+import { listPlaylists } from '../music/playlist.js';
 
 const ACCENT = 0x1DB954;
 const SUCCESS = 0x2ecc71;
@@ -354,10 +356,129 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(sub =>
     sub.setName('settings')
       .setDescription('⚙️ [ADMIN] Buka panel pengaturan music player')
+  )
+  .addSubcommand(sub =>
+    sub.setName('help')
+      .setDescription('📖 Lihat daftar semua command music player')
+  )
+  .addSubcommand(sub =>
+    sub.setName('status')
+      .setDescription('🔍 Debug info: connection, queue, listeners, uptime')
   );
 
-// Re-route /play etc to the music group would be ideal, but for now
-// /music is the "settings" container. Other commands (play/skip/etc) are top-level.
+function buildHelpEmbed(guild) {
+  return new EmbedBuilder()
+    .setColor(ACCENT)
+    .setAuthor({ name: `${guild.name} • Music Help`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
+    .setTitle('📖 Music Player — Daftar Command')
+    .setDescription('Semua command music player. Klik tiap section untuk info lebih lanjut.')
+    .addFields(
+      {
+        name: '▶️ **Playback**',
+        value: [
+          '`/play <query>` — Putar lagu (YouTube/Spotify URL atau judul)',
+          '`/pause [mode]` — Pause / resume / toggle',
+          '`/skip` — Skip lagu sekarang',
+          '`/stop` atau `/disconnect` — Stop & leave VC',
+          '`/nowplaying` — Lihat panel Now Playing',
+          '`/queue` — Lihat antrian (dengan paging)',
+        ].join('\n'),
+        inline: false,
+      },
+      {
+        name: '🎛️ **Controls**',
+        value: [
+          '`/loop <off|song|queue>` — Set mode loop',
+          '`/shuffle` — Acak antrian',
+          '`/volume <0-200>` — Set volume',
+          '`/247` — Toggle 24/7 mode',
+        ].join('\n'),
+        inline: false,
+      },
+      {
+        name: '🎵 **Advanced** (`/mextra`)',
+        value: [
+          '`/mextra seek <1:30>` — Lompat posisi',
+          '`/mextra jump <n>` — Lompat ke track ke-N',
+          '`/mextra remove <n>` — Hapus track',
+          '`/mextra move <from> <to>` — Reorder',
+          '`/mextra clearqueue` — Clear queue',
+          '`/mextra lyrics` — Lirik lagu',
+          '`/mextra favorite <action>` — Favorit',
+          '`/mextra skipvote` — Vote skip',
+        ].join('\n'),
+        inline: false,
+      },
+      {
+        name: '📋 **Playlist** (`/playlist`)',
+        value: [
+          '`/playlist list|create|delete|rename`',
+          '`/playlist add <pl> <lagu>`',
+          '`/playlist remove|clear|view|play`',
+        ].join('\n'),
+        inline: false,
+      },
+      {
+        name: '⚙️ **Settings & Help**',
+        value: [
+          '`/music settings` — [ADMIN] Panel konfigurasi (DJ role, 24/7, announce, dll)',
+          '`/music help` — Lihat help ini lagi',
+          '`/music status` — Debug info',
+        ].join('\n'),
+        inline: false,
+      },
+    )
+    .setFooter({ text: '🎶 Music Player • Bot ini pakai play-dl (no Lavalink needed)' })
+    .setTimestamp();
+}
+
+function buildStatusEmbed(guild) {
+  const state = getGuildState(guild.id);
+  const cfg = getMusicConfig(guild.id);
+  const status = getPlayerStatus(guild.id);
+  const paused = isPaused(guild.id);
+  const stateLabel = !status.connected
+    ? '🔴 Disconnected'
+    : paused
+      ? '⏸️ Paused'
+      : '▶️ Playing';
+
+  let elapsed = '0:00';
+  if (state.currentStartedAt && state.currentSong && status.connected) {
+    const sec = Math.floor((Date.now() - state.currentStartedAt) / 1000);
+    elapsed = formatDuration(Math.min(sec, state.currentSong.duration || 0));
+  }
+
+  const voiceCh = state.voiceChannelId ? guild.channels?.cache?.get(state.voiceChannelId) : null;
+  let humanCount = 0;
+  if (voiceCh?.members) {
+    if (typeof voiceCh.members.filter === 'function') {
+      humanCount = voiceCh.members.filter(m => !m.user?.bot).size;
+    } else if (voiceCh.members instanceof Map) {
+      for (const m of voiceCh.members.values()) if (!m.user?.bot) humanCount++;
+    }
+  }
+
+  const totalQueueSec = state.queue.reduce((s, t) => s + (t.duration || 0), 0);
+
+  return new EmbedBuilder()
+    .setColor(ACCENT)
+    .setAuthor({ name: `${guild.name} • Music Status`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
+    .setTitle('🔍 Music Status (Debug)')
+    .addFields(
+      { name: '🎵 State', value: stateLabel, inline: true },
+      { name: '🔊 Volume', value: `${state.volume}%`, inline: true },
+      { name: '🔁 Loop', value: state.loop, inline: true },
+      { name: '🎤 Voice Channel', value: voiceCh ? `\`${voiceCh.name}\` (${humanCount} manusia)` : 'Tidak di VC', inline: true },
+      { name: '📋 Queue', value: `${state.queue.length} lagu • ⏱️ ${formatDuration(totalQueueSec)}`, inline: true },
+      { name: '🎶 Now Playing', value: state.currentSong ? `\`${state.currentSong.title.slice(0, 40)}\` (${elapsed}/${formatDuration(state.currentSong.duration)})` : '*idle*', inline: true },
+      { name: '🕐 24/7', value: cfg['247'] ? '✅ On' : '❌ Off', inline: true },
+      { name: '👑 DJ Role', value: cfg.djRoleId ? `<@&${cfg.djRoleId}>` : '*Belum diset*', inline: true },
+      { name: '📢 Announce', value: cfg.announceChannelId ? `<#${cfg.announceChannelId}>` : '*Off*', inline: true },
+    )
+    .setFooter({ text: '🎶 Music Player • Status updated real-time' })
+    .setTimestamp();
+}
 
 // ════════════════════════════════════════
 // COMPONENT HANDLERS (called by index.js)
@@ -396,6 +517,20 @@ export async function execute(interaction) {
     const data = getMusicConfig(interaction.guildId);
     const panel = panelMain(data, interaction.guild);
     return interaction.reply({ embeds: [panel.embed], components: panel.rows, flags: MessageFlags.Ephemeral });
+  }
+
+  if (sub === 'help') {
+    return interaction.reply({
+      embeds: [buildHelpEmbed(interaction.guild)],
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  if (sub === 'status') {
+    return interaction.reply({
+      embeds: [buildStatusEmbed(interaction.guild)],
+      flags: MessageFlags.Ephemeral,
+    });
   }
 }
 
