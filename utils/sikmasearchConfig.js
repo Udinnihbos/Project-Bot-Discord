@@ -1,14 +1,9 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/sikmasearch.json');
+import { readBlob, writeBlob } from './db.js';
 
 export const DEFAULT_CONFIG = {
   enabled: false,
   channelId: null,
-  searchMode: 'smart',   // smart | exact
+  searchMode: 'smart',
   safeSearch: true,
   maxResults: 5,
   sources: {
@@ -17,25 +12,19 @@ export const DEFAULT_CONFIG = {
   },
 };
 
-function loadDB() {
-  if (!existsSync(DB_PATH)) { writeFileSync(DB_PATH, JSON.stringify({}, null, 2)); return {}; }
-  return JSON.parse(readFileSync(DB_PATH, 'utf8'));
-}
-
-function saveDB(data) {
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
+function loadAll() { return readBlob('sikmasearch', 'all') || {}; }
+function saveAll(db) { writeBlob('sikmasearch', db, 'all'); }
 
 export function getGuildConfig(guildId) {
-  const db = loadDB();
+  const db = loadAll();
   return { ...DEFAULT_CONFIG, ...db[guildId], sources: { ...DEFAULT_CONFIG.sources, ...(db[guildId]?.sources || {}) } };
 }
 
 export function updateGuildConfig(guildId, updates) {
-  const db = loadDB();
+  const db = loadAll();
   const current = getGuildConfig(guildId);
   const updated = { ...current, ...updates };
   db[guildId] = updated;
-  saveDB(db);
+  saveAll(db);
   return updated;
 }

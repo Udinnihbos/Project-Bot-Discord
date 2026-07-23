@@ -1,56 +1,22 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/activity-data.json');
-
-function loadDB() {
-  if (!existsSync(DB_PATH)) {
-    writeFileSync(DB_PATH, JSON.stringify({}, null, 2));
-    return {};
-  }
-  return JSON.parse(readFileSync(DB_PATH, 'utf8'));
-}
-
-function saveDB(data) {
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
+import { read, write, readAll, readObject } from './db.js';
 
 /**
- * Get per-guild activity config + members data.
- * Shape:
- * {
- *   enabled: boolean,
- *   trackedChannels: [channelId, ...],   // whitelist
- *   leaderboardChannelId: string|null,
- *   autoUpdate: boolean,
- *   publishedMessageId: string|null,
- *   members: {
- *     [userId]: {
- *       totalMessages: number,
- *       lastActive: number,           // ms epoch
- *       joinedServer: number,         // ms epoch
- *       channelMessages: { [channelId]: number },
- *     }
- *   }
- * }
+ * Per-guild activity config + members data.
+ * shape:
+ *   enabled, trackedChannels, leaderboardChannelId, autoUpdate,
+ *   publishedMessageId, members: { [userId]: {...} }
  */
-export function getGuildActivity(guildId) {
-  const db = loadDB();
-  if (!db[guildId]) {
-    db[guildId] = {
-      enabled: false,
-      trackedChannels: [],
-      leaderboardChannelId: null,
-      autoUpdate: false,
-      publishedMessageId: null,
-      members: {},
-    };
-    saveDB(db);
-  }
-  // Migrate
-  const g = db[guildId];
+
+const DEFAULT = () => ({
+  enabled: false,
+  trackedChannels: [],
+  leaderboardChannelId: null,
+  autoUpdate: false,
+  publishedMessageId: null,
+  members: {},
+});
+
+function migrate(g) {
   if (g.enabled === undefined) g.enabled = false;
   if (!Array.isArray(g.trackedChannels)) g.trackedChannels = [];
   if (g.leaderboardChannelId === undefined) g.leaderboardChannelId = null;
@@ -60,17 +26,19 @@ export function getGuildActivity(guildId) {
   return g;
 }
 
-export function saveGuildActivity(guildId, data) {
-  const db = loadDB();
-  db[guildId] = data;
-  saveDB(db);
+export function getGuildActivity(guildId) {
+  let g = read('activity_data', guildId);
+  if (!g) {
+    g = DEFAULT();
+    write('activity_data', guildId, g);
+  }
+  return migrate(g);
 }
 
-/**
- * Update member activity stats after a message is sent.
- * Increments totalMessages, channelMessages[channelId], updates lastActive.
- * Initializes joinedServer the first time the member is seen.
- */
+export function saveGuildActivity(guildId, data) {
+  write('activity_data', guildId, data);
+}
+
 export function recordMessage(guildId, userId, channelId) {
   const g = getGuildActivity(guildId);
   if (!g.members[userId]) {

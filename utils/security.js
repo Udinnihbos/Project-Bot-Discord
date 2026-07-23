@@ -1,9 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = join(__dirname, '../data/security-config.json');
+import { read, write } from './db.js';
 
 const DEFAULT_CONFIG = {
   antiRaid: {
@@ -13,7 +8,7 @@ const DEFAULT_CONFIG = {
     minAccountAgeDays: 3,
     action: 'kick',
     autoLockdown: true,
-    logChannelId: null
+    logChannelId: null,
   },
   antiSpam: {
     enabled: false,
@@ -24,30 +19,30 @@ const DEFAULT_CONFIG = {
     action: 'timeout',
     timeoutDurationMinutes: 10,
     deleteMessages: true,
-    logChannelId: null
+    logChannelId: null,
   },
   whitelistUserIds: [],
   whitelistRoleIds: [],
-  lockdown: { active: false, lockedChannelIds: [] }
+  lockdown: { active: false, lockedChannelIds: [] },
 };
 
 export function getSecurityConfig() {
-  if (!existsSync(CONFIG_PATH)) {
-    writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2));
-    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  let data = read('security_config', 'global');
+  if (!data) {
+    data = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    write('security_config', 'global', data);
   }
-  const data = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
   return {
     ...DEFAULT_CONFIG,
     ...data,
     antiRaid: { ...DEFAULT_CONFIG.antiRaid, ...data.antiRaid },
     antiSpam: { ...DEFAULT_CONFIG.antiSpam, ...data.antiSpam },
-    lockdown: { ...DEFAULT_CONFIG.lockdown, ...data.lockdown }
+    lockdown: { ...DEFAULT_CONFIG.lockdown, ...data.lockdown },
   };
 }
 
 export function saveSecurityConfig(config) {
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  write('security_config', 'global', config);
 }
 
 const recentJoins = [];
@@ -60,8 +55,6 @@ function isWhitelisted(member, config) {
   if (member.permissions?.has?.('Administrator')) return true;
   return false;
 }
-
-// ── ANTI-RAID ──
 
 export async function checkRaid(member, client) {
   const config = getSecurityConfig();
@@ -97,7 +90,7 @@ async function triggerRaidResponse(guild, client, config, joinedMembers) {
             { name: '🔒 Lockdown', value: config.antiRaid.autoLockdown ? 'Aktif' : 'Tidak', inline: true },
           ],
           timestamp: new Date().toISOString(),
-        }]
+        }],
       });
     } catch {}
   }
@@ -152,8 +145,6 @@ export async function deactivateLockdown(guild, config = null) {
   config.lockdown = { active: false, lockedChannelIds: [] };
   saveSecurityConfig(config);
 }
-
-// ── ANTI-SPAM ──
 
 export async function checkSpam(message) {
   const config = getSecurityConfig();
@@ -240,7 +231,7 @@ async function handleSpamViolation(message, config, reason) {
             { name: '📊 Violations', value: `${violations}x`, inline: true },
           ],
           timestamp: new Date().toISOString(),
-        }]
+        }],
       });
     } catch {}
   }

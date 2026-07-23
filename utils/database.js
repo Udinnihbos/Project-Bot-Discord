@@ -1,40 +1,152 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+/**
+ * Player & reference data storage — SQLite-backed.
+ *
+ * Drop-in replacement for the old JSON-based database.js.
+ * All public exports are unchanged so callers don't need to be modified.
+ *
+ * Storage strategy:
+ *   - Static reference data (fish, rods, etc.)  → individual tables
+ *   - Player data ({ players, trades })         → single blob row in `players`
+ */
+
+import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { read, write, readAll, readObject, readBlob, writeBlob, initDB as initSQLite, raw as rawDB } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/players.json');
-const FISH_DB_PATH = join(__dirname, '../data/fish-data.json');
-const ROD_DB_PATH = join(__dirname, '../data/rod-data.json');
-const EVENT_DB_PATH = join(__dirname, '../data/event-data.json');
-const RR_DB_PATH = join(__dirname, '../data/reactionrole-data.json');
-const GAMEPASS_DB_PATH = join(__dirname, '../data/gamepass-data.json');
-const MISSION_DB_PATH = join(__dirname, '../data/mission-data.json');
 
-if (!existsSync(DB_PATH)) {
-  writeFileSync(DB_PATH, JSON.stringify({ players: {}, trades: [] }, null, 2));
+// Initialize SQLite lazily on first call. Idempotent.
+function ensureInit() {
+  initSQLite();
 }
 
-export function getFishData() { return JSON.parse(readFileSync(FISH_DB_PATH, 'utf8')); }
-export function saveFishData(data) { writeFileSync(FISH_DB_PATH, JSON.stringify(data, null, 2)); }
-export function getRodData() { return JSON.parse(readFileSync(ROD_DB_PATH, 'utf8')); }
-export function saveRodData(data) { writeFileSync(ROD_DB_PATH, JSON.stringify(data, null, 2)); }
-export function getEventData() { return JSON.parse(readFileSync(EVENT_DB_PATH, 'utf8')); }
-export function saveEventData(data) { writeFileSync(EVENT_DB_PATH, JSON.stringify(data, null, 2)); }
-export function getRRData() { return JSON.parse(readFileSync(RR_DB_PATH, 'utf8')); }
-export function saveRRData(data) { writeFileSync(RR_DB_PATH, JSON.stringify(data, null, 2)); }
-export function getGamepassData() { return JSON.parse(readFileSync(GAMEPASS_DB_PATH, 'utf8')); }
-export function saveGamepassData(data) { writeFileSync(GAMEPASS_DB_PATH, JSON.stringify(data, null, 2)); }
-export function getMissionData() { return JSON.parse(readFileSync(MISSION_DB_PATH, 'utf8')); }
-export function saveMissionData(data) { writeFileSync(MISSION_DB_PATH, JSON.stringify(data, null, 2)); }
+function emptyPlayerData() {
+  return { players: {}, trades: [] };
+}
 
-export function getDB() { return JSON.parse(readFileSync(DB_PATH, 'utf8')); }
-export function saveDB(data) { writeFileSync(DB_PATH, JSON.stringify(data, null, 2)); }
+function getPlayerBlob() {
+  ensureInit();
+  const blob = readBlob('players', 'all');
+  return blob || emptyPlayerData();
+}
+
+function savePlayerBlob(data) {
+  ensureInit();
+  // Signature: writeBlob(table, data, blobKey='all')
+  writeBlob('players', data, 'all');
+}
+
+// ─── Static reference data ───
+// These tables are pre-populated by migration from JSON.
+// On first read, if the SQLite table is empty, we lazily load from
+// the JSON file as a fallback. After migration runs, all reads come
+// from SQLite.
+
+function readJsonIfPresent(path) {
+  try {
+    if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {}
+  return null;
+}
+
+function getStaticTable(table, jsonFile, defaultValue = {}) {
+  ensureInit();
+  const obj = readObject(table);
+  if (Object.keys(obj).length > 0) return obj;
+  // Lazy fallback to JSON if SQLite empty (e.g. before migration)
+  const jsonPath = join(__dirname, '../data', jsonFile);
+  const json = readJsonIfPresent(jsonPath);
+  if (json) {
+    // Migrate on the fly: insert each top-level key
+    for (const [k, v] of Object.entries(json)) {
+      write(table, k, v);
+    }
+    return json;
+  }
+  return defaultValue;
+}
+
+export function getFishData() {
+  return getStaticTable('fish_data', 'fish-data.json', { fish: [], rarityConfig: {} });
+}
+export function saveFishData(data) {
+  ensureInit();
+  // data is { fish: [...], rarityConfig: {...} } — split or store as blob?
+  // Simpler: store as 2 rows: 'fish' and 'rarityConfig'
+  write('fish_data', 'fish', data.fish || []);
+  if (data.rarityConfig) write('fish_data', 'rarityConfig', data.rarityConfig);
+  // Also keep JSON in sync for tooling that reads raw files (backward compat)
+  // (writeJsonSync removed; JSON is just a one-time migration source now)
+}
+
+export function getRodData() {
+  const obj = getStaticTable('rod_data', 'rod-data.json', { rods: [] });
+  // Old API returned { rods: [...] }
+  if (Array.isArray(obj.rods)) return obj;
+  if (Array.isArray(obj.config)) return { rods: obj.config };
+  return { rods: [] };
+}
+export function saveRodData(data) {
+  ensureInit();
+  write('rod_data', 'rods', data.rods || (Array.isArray(data) ? data : []));
+}
+
+export function getEventData() {
+  return getStaticTable('event_data', 'event-data.json', {
+    activeEvent: null, presets: [], announcementChannelId: null, activeEvents: []
+  });
+}
+export function saveEventData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('event_data', k, v);
+  }
+}
+
+export function getRRData() {
+  return getStaticTable('reactionrole_data', 'reactionrole-data.json', { panels: {} });
+}
+export function saveRRData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('reactionrole_data', k, v);
+  }
+}
+
+export function getGamepassData() {
+  return getStaticTable('gamepass_data', 'gamepass-data.json', { gamepasses: [], announcementChannelId: null });
+}
+export function saveGamepassData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('gamepass_data', k, v);
+  }
+}
+
+export function getMissionData() {
+  return getStaticTable('mission_data', 'mission-data.json', { missions: [], announcementChannelId: null });
+}
+export function saveMissionData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('mission_data', k, v);
+  }
+}
+
+// ─── Player data ───
+
+export function getDB() {
+  return getPlayerBlob();
+}
+export function saveDB(data) {
+  savePlayerBlob(data);
+}
 
 export function getPlayer(userId) {
-  const db = getDB();
-  if (!db.players[userId]) {
-    db.players[userId] = {
+  const blob = getPlayerBlob();
+  if (!blob.players[userId]) {
+    blob.players[userId] = {
       id: userId,
       coins: 0,
       gems: 0,
@@ -45,17 +157,13 @@ export function getPlayer(userId) {
       totalEarned: 0,
       ownedRods: ['pancing_bambu'],
       equippedRod: 'pancing_bambu',
-      gamepasses: [],       // [{ id, expiresAt }] expiresAt null = permanent
-      dailyMissions: {      // { date: 'YYYY-MM-DD', progress: { missionId: current } }
-        date: '',
-        progress: {},
-        claimed: []
-      }
+      gamepasses: [],
+      dailyMissions: { date: '', progress: {}, claimed: [] },
     };
-    saveDB(db);
+    savePlayerBlob(blob);
   }
-  const player = db.players[userId];
-  // Migrate
+  const player = blob.players[userId];
+  // Migrate (legacy fields)
   if (!player.ownedRods) { player.ownedRods = ['pancing_bambu']; player.equippedRod = 'pancing_bambu'; }
   if (player.gems === undefined) player.gems = 0;
   if (!player.gamepasses) player.gamepasses = [];
@@ -66,31 +174,29 @@ export function getPlayer(userId) {
   if (!player.tickets) player.tickets = {};
   if (!player.items) player.items = {};
   if (!player.activeEffects) player.activeEffects = {};
-  db.players[userId] = player;
-  saveDB(db);
-  return db.players[userId];
+  blob.players[userId] = player;
+  savePlayerBlob(blob);
+  return blob.players[userId];
 }
 
 export function savePlayer(userId, playerData) {
-  const db = getDB();
-  db.players[userId] = playerData;
-  saveDB(db);
+  const blob = getPlayerBlob();
+  blob.players[userId] = playerData;
+  savePlayerBlob(blob);
 }
 
 export function getAllPlayers() {
-  const db = getDB();
-  return db.players;
+  return getPlayerBlob().players;
 }
 
 export function getTrades() {
-  const db = getDB();
-  return db.trades || [];
+  return getPlayerBlob().trades || [];
 }
 
 export function saveTrades(trades) {
-  const db = getDB();
-  db.trades = trades;
-  saveDB(db);
+  const blob = getPlayerBlob();
+  blob.trades = trades;
+  savePlayerBlob(blob);
 }
 
 export function getActiveEvent() {
@@ -104,17 +210,15 @@ export function getActiveEvent() {
   return data.activeEvent;
 }
 
-// Check if player has an active gamepass
 export function hasGamepass(player, gamepassId) {
   if (!player.gamepasses) return false;
   const gp = player.gamepasses.find(g => g.id === gamepassId);
   if (!gp) return false;
-  if (gp.expiresAt === null) return true; // permanent
-  if (Date.now() > gp.expiresAt) return false; // expired
+  if (gp.expiresAt === null) return true;
+  if (Date.now() > gp.expiresAt) return false;
   return true;
 }
 
-// Check if player has any gamepass with unlockAfk
 export function hasAfkUnlock(player) {
   if (!player.gamepasses) return false;
   const gpData = getGamepassData();
@@ -126,12 +230,10 @@ export function hasAfkUnlock(player) {
   return false;
 }
 
-// Get today's date string
 export function getTodayString() {
   return new Date().toISOString().split('T')[0];
 }
 
-// Reset daily missions if new day
 export function checkAndResetMissions(player) {
   const today = getTodayString();
   if (player.dailyMissions.date !== today) {
@@ -140,61 +242,51 @@ export function checkAndResetMissions(player) {
   return player;
 }
 
-const MUTATION_DB_PATH = join(__dirname, '../data/mutation-data.json');
-export function getMutationData() { return JSON.parse(readFileSync(MUTATION_DB_PATH, 'utf8')); }
-export function saveMutationData(data) { writeFileSync(MUTATION_DB_PATH, JSON.stringify(data, null, 2)); }
+// ─── Additional reference data (bait, shop, spawn, level, zona, mutations) ───
 
-// ── CUACA STACK (max 3) ──
-export function getActiveEvents() {
-  const data = getEventData();
-  if (!data.activeEvents) data.activeEvents = [];
-  const now = Date.now();
-  // Filter expired
-  data.activeEvents = data.activeEvents.filter(e => !e.endsAt || now <= e.endsAt);
-  return data.activeEvents;
+export function getMutationData() {
+  return getStaticTable('mutation_data', 'mutation-data.json', { mutations: [], rarityConfig: {} });
+}
+export function saveMutationData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('mutation_data', k, v);
+  }
 }
 
-export function addActiveEvent(event) {
-  const data = getEventData();
-  if (!data.activeEvents) data.activeEvents = [];
-  // Max 3 stack
-  if (data.activeEvents.length >= 3) return false;
-  data.activeEvents.push(event);
-  saveEventData(data);
-  return true;
+export function getBaitData() {
+  return getStaticTable('bait_data', 'bait-data.json', { baits: [] });
+}
+export function saveBaitData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('bait_data', k, v);
+  }
 }
 
-export function removeActiveEvent(eventId) {
-  const data = getEventData();
-  if (!data.activeEvents) data.activeEvents = [];
-  data.activeEvents = data.activeEvents.filter(e => e.id !== eventId);
-  saveEventData(data);
+export function getShopData() {
+  return getStaticTable('shop_data', 'shop-data.json', { items: [] });
+}
+export function saveShopData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('shop_data', k, v);
+  }
 }
 
-export function clearActiveEvents() {
-  const data = getEventData();
-  data.activeEvents = [];
-  // Keep backward compat
-  data.activeEvent = null;
-  saveEventData(data);
+export function getSpawnConfig() {
+  return getStaticTable('spawn_config', 'spawn-config.json', { spawnInterval: 30, activeSpawns: [] });
+}
+export function saveSpawnConfig(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('spawn_config', k, v);
+  }
 }
 
-// ── BAIT ──
-const BAIT_DB_PATH = join(__dirname, '../data/bait-data.json');
-export function getBaitData() { return JSON.parse(readFileSync(BAIT_DB_PATH, 'utf8')); }
-export function saveBaitData(data) { writeFileSync(BAIT_DB_PATH, JSON.stringify(data, null, 2)); }
-
-const SHOP_DB_PATH = join(__dirname, '../data/shop-data.json');
-export function getShopData() { return JSON.parse(readFileSync(SHOP_DB_PATH, 'utf8')); }
-export function saveShopData(data) { writeFileSync(SHOP_DB_PATH, JSON.stringify(data, null, 2)); }
-
-const SPAWN_CONFIG_PATH = join(__dirname, '../data/spawn-config.json');
-export function getSpawnConfig() { return JSON.parse(readFileSync(SPAWN_CONFIG_PATH, 'utf8')); }
-export function saveSpawnConfig(data) { writeFileSync(SPAWN_CONFIG_PATH, JSON.stringify(data, null, 2)); }
-
-// ── LEVEL ──
-const LEVEL_DB_PATH = join(__dirname, '../data/level-rewards.json');
-export function getLevelData() { return JSON.parse(readFileSync(LEVEL_DB_PATH, 'utf8')); }
+export function getLevelData() {
+  return getStaticTable('level_rewards', 'level-rewards.json', { xpPerFish: {}, xpPerRarity: {}, levelThresholds: [], rewards: {} });
+}
 
 export function getPlayerLevel(player) {
   const { levelThresholds } = getLevelData();
@@ -226,12 +318,50 @@ export function addXp(player, amount) {
   return { levelUps, newLevel, oldLevel };
 }
 
-// ── ZONA ──
-const ZONA_DB_PATH = join(__dirname, '../data/zona-data.json');
-export function getZonaData() { return JSON.parse(readFileSync(ZONA_DB_PATH, 'utf8')); }
-export function saveZonaData(data) { writeFileSync(ZONA_DB_PATH, JSON.stringify(data, null, 2)); }
+export function getZonaData() {
+  return getStaticTable('zona_data', 'zona-data.json', { zonas: {} });
+}
+export function saveZonaData(data) {
+  ensureInit();
+  for (const [k, v] of Object.entries(data)) {
+    write('zona_data', k, v);
+  }
+}
 
 export function getZonaByChannel(channelId) {
   const { zonas } = getZonaData();
   return Object.values(zonas).find(z => z.channelId === channelId) || null;
+}
+
+// ─── Weather stack (max 3) ───
+export function getActiveEvents() {
+  const data = getEventData();
+  if (!data.activeEvents) data.activeEvents = [];
+  const now = Date.now();
+  // Filter expired
+  data.activeEvents = data.activeEvents.filter(e => !e.endsAt || now <= e.endsAt);
+  return data.activeEvents;
+}
+
+export function addActiveEvent(event) {
+  const data = getEventData();
+  if (!data.activeEvents) data.activeEvents = [];
+  if (data.activeEvents.length >= 3) return false;
+  data.activeEvents.push(event);
+  saveEventData(data);
+  return true;
+}
+
+export function removeActiveEvent(eventId) {
+  const data = getEventData();
+  if (!data.activeEvents) data.activeEvents = [];
+  data.activeEvents = data.activeEvents.filter(e => e.id !== eventId);
+  saveEventData(data);
+}
+
+export function clearActiveEvents() {
+  const data = getEventData();
+  data.activeEvents = [];
+  data.activeEvent = null;
+  saveEventData(data);
 }

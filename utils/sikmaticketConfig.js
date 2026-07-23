@@ -1,21 +1,7 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/sikmaticket.json');
+import { readBlob, writeBlob } from './db.js';
 
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function loadDB() {
-  if (!existsSync(DB_PATH)) { writeFileSync(DB_PATH, JSON.stringify({}, null, 2)); return {}; }
-  return JSON.parse(readFileSync(DB_PATH, 'utf8'));
-}
-
-function saveDB(data) {
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
 const DEFAULT_GUILD = {
@@ -24,7 +10,7 @@ const DEFAULT_GUILD = {
   transcriptChannelId: null,
   maxTicketsPerUser: 1,
   panels: [],
-  activeTickets: {},   // channelId -> { panelId, typeId, userId, number, openedAt }
+  activeTickets: {},
 };
 
 const DEFAULT_PANEL = {
@@ -38,7 +24,7 @@ const DEFAULT_PANEL = {
   channelId: null,
   messageId: null,
   autoUpdate: false,
-  displayType: 'button',  // button | select
+  displayType: 'button',
   ticketTypes: [],
 };
 
@@ -47,7 +33,7 @@ const DEFAULT_TYPE = {
   name: 'General',
   emoji: '🎫',
   description: 'Pertanyaan umum',
-  buttonStyle: 'Primary',   // Primary | Secondary | Success | Danger
+  buttonStyle: 'Primary',
   categoryId: null,
   mentionRoles: [],
   mentionText: 'Halo {roles}! Ada tiket baru dari {user}.',
@@ -55,20 +41,25 @@ const DEFAULT_TYPE = {
   order: 0,
 };
 
-// ── Guild ──
+function loadAll() {
+  return readBlob('sikmaticket', 'all') || {};
+}
+function saveAll(db) {
+  writeBlob('sikmaticket', db, 'all');
+}
+
 export function getGuildConfig(guildId) {
-  const db = loadDB();
+  const db = loadAll();
   return { ...DEFAULT_GUILD, ...(db[guildId] || {}), panels: db[guildId]?.panels || [] };
 }
 
 export function updateGuildConfig(guildId, updates) {
-  const db = loadDB();
+  const db = loadAll();
   db[guildId] = { ...DEFAULT_GUILD, ...(db[guildId] || {}), ...updates };
-  saveDB(db);
+  saveAll(db);
   return db[guildId];
 }
 
-// ── Panels ──
 export function getPanels(guildId) {
   return getGuildConfig(guildId).panels;
 }
@@ -100,7 +91,6 @@ export function deletePanel(guildId, panelId) {
   updateGuildConfig(guildId, { panels: config.panels });
 }
 
-// ── Ticket Types ──
 export function getTicketType(guildId, panelId, typeId) {
   const panel = getPanel(guildId, panelId);
   return panel?.ticketTypes?.find(t => t.id === typeId) || null;
@@ -151,7 +141,6 @@ export function reorderTicketType(guildId, panelId, typeId, direction) {
   updateGuildConfig(guildId, { panels: config.panels });
 }
 
-// ── Active Tickets ──
 export function addActiveTicket(guildId, channelId, data) {
   const config = getGuildConfig(guildId);
   config.activeTickets[channelId] = { ...data, openedAt: Date.now() };

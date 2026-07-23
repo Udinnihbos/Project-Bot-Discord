@@ -1,21 +1,7 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/sikmatree.json');
-
-function loadDB() {
-  if (!existsSync(DB_PATH)) { writeFileSync(DB_PATH, JSON.stringify({}, null, 2)); return {}; }
-  return JSON.parse(readFileSync(DB_PATH, 'utf8'));
-}
-
-function saveDB(data) {
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
+import { readBlob, writeBlob, readAll } from './db.js';
 
 export function getGuildData(guildId) {
-  const db = loadDB();
+  const db = readBlob('sikmatree', 'all') || {};
   return db[guildId] || {
     links: [],
     channelId: null,
@@ -25,9 +11,9 @@ export function getGuildData(guildId) {
 }
 
 export function saveGuildData(guildId, data) {
-  const db = loadDB();
+  const db = readBlob('sikmatree', 'all') || {};
   db[guildId] = data;
-  saveDB(db);
+  writeBlob('sikmatree', db, 'all');
 }
 
 export function generateId() {

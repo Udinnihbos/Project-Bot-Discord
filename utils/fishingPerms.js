@@ -1,43 +1,28 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '../data/fishing-config.json');
+import { read, write, readBlob, writeBlob } from './db.js';
+import { EmbedBuilder } from 'discord.js';
 
 /**
  * Per-guild fishing config.
- * shape: {
- *   [guildId]: {
- *     fishingRoleId: string|null,
- *     // boleh akses command mancing & turunannya:
- *     // - Server Owner (always)
- *     // - Administrator (always)
- *     // - user dengan role fishingRoleId
- *     // - bisa ditambah: bypassRoles: string[] (optional future)
- *   }
- * }
+ * shape: { [guildId]: { fishingRoleId: string|null } }
  */
-function load() {
-  if (!existsSync(DB_PATH)) return {};
-  try { return JSON.parse(readFileSync(DB_PATH, 'utf8')); } catch { return {}; }
-}
-function save(data) { writeFileSync(DB_PATH, JSON.stringify(data, null, 2)); }
+
+function loadAll() { return readBlob('fishing_config', 'all') || {}; }
+function saveAll(db) { writeBlob('fishing_config', db, 'all'); }
 
 export function getFishingConfig(guildId) {
-  const all = load();
+  const all = loadAll();
   if (!all[guildId]) {
     all[guildId] = { fishingRoleId: null };
-    save(all);
+    saveAll(all);
   }
   return all[guildId];
 }
 
 export function setFishingRole(guildId, roleId) {
-  const all = load();
+  const all = loadAll();
   if (!all[guildId]) all[guildId] = { fishingRoleId: null };
   all[guildId].fishingRoleId = roleId || null;
-  save(all);
+  saveAll(all);
   return all[guildId];
 }
 
@@ -47,12 +32,6 @@ export function clearFishingRole(guildId) {
 
 /**
  * Check if user has access to fishing commands.
- * Returns { allowed: boolean, reason?: string }
- *
- * Allowed if:
- * - Server Owner
- * - Administrator permission
- * - Has the configured fishing role
  */
 export function hasFishingAccess(interaction) {
   if (!interaction.guild) return { allowed: false, reason: 'Command ini cuma untuk server.' };

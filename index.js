@@ -12,6 +12,10 @@ import { handleSikmasearch } from './utils/sikmasearchHandler.js';
 import { handleSikmaticket } from './utils/sikmaticketHandler.js';
 import { handleActivityComponent, handleActivitySelect, handleActivityModal, handleActivityMessageCreate } from './commands/activity.js';
 import { handleFishingRoleButton, handleFishingRoleSelect } from './commands/fishingrole.js';
+import { initDB } from './utils/db.js';
+
+// Initialize SQLite (auto-migrates from JSON on first run)
+initDB();
 
 config();
 
