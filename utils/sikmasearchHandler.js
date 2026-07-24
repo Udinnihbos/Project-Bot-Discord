@@ -91,11 +91,19 @@ async function sendSearchResult(message, query, config) {
     searchResult = await performSearch(query, config, { offset: 0 });
   } catch (err) {
     clearInterval(typingInterval);
+    // Detect common error patterns and give actionable advice
+    const msg = err.message || '';
+    let advice = '';
+    if (msg.includes('GOOGLE_SEARCH_API_KEY') || msg.includes('BRAVE_SEARCH_API_KEY')) {
+      advice = '\n\n💡 **Tip:** Setup Brave/Google API di `/sikmasearch settings` untuk hasil lebih lengkap. Tanpa itu, bot pakai DuckDuckGo (zero-config, hasil lebih sedikit).';
+    } else if (msg.includes('Tidak ada sumber')) {
+      advice = '\n\n💡 Aktifkan minimal 1 sumber di `/sikmasearch settings`.';
+    }
     return message.reply({
       embeds: [new EmbedBuilder()
         .setColor('#e74c3c')
         .setTitle('❌ Pencarian Gagal')
-        .setDescription(err.message)
+        .setDescription(msg + advice)
       ]
     });
   }
@@ -174,11 +182,19 @@ export async function handleSikmasearch(message, client) {
   if (!message.guild) return;
 
   const config = getGuildConfig(message.guild.id);
+  const isMention = message.mentions.has(client.user);
+
+  // If bot is mentioned but search is disabled, hint to admin
+  if (isMention && !config.enabled) {
+    return message.reply({
+      content: '🔍 SikmaSearch belum diaktifkan. Admin: jalankan `/sikmasearch settings` untuk mengaktifkan.',
+      allowedMentions: { repliedUser: false },
+    });
+  }
+
   if (!config.enabled) return;
 
-  const isMention = message.mentions.has(client.user);
   const isSearchChannel = config.channelId && message.channel.id === config.channelId;
-
   if (!isMention && !isSearchChannel) return;
 
   const query = extractQuery(message.content, client.user.id);

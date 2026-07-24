@@ -75,6 +75,8 @@ client.on('messageCreate', async message => {
   try { await handleActivityMessageCreate(message); } catch (e) { console.error('Activity tracker error:', e.message); }
   // Ticket V2 message tracker (increments count, marks first staff response)
   try { await trackTicketMessage(message); } catch (e) { console.error('TicketV2 message tracker error:', e.message); }
+  // SikmaSearch: user tags bot → reply with search results
+  try { await handleSikmasearch(message, client); } catch (e) { console.error('SikmaSearch error:', e.message); }
 });
 
 client.on('interactionCreate', async interaction => {

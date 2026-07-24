@@ -12,23 +12,25 @@ import { getGuildConfig, updateGuildConfig } from '../utils/sikmasearchConfig.js
 
 function getSourceStatus(sourceName) {
   const envMap = {
-    google: ['GOOGLE_SEARCH_API_KEY', 'GOOGLE_SEARCH_CX'],
-    brave: ['BRAVE_SEARCH_API_KEY'],
+    google: { vars: ['GOOGLE_SEARCH_API_KEY', 'GOOGLE_SEARCH_CX'], label: 'Google Custom Search' },
+    brave: { vars: ['BRAVE_SEARCH_API_KEY'], label: 'Brave Search' },
   };
-  const vars = envMap[sourceName] || [];
-  const missing = vars.filter(v => !process.env[v]);
-  if (missing.length > 0) return { ok: false, label: `❌ Belum dikonfigurasi (${missing.join(', ')})` };
+  const meta = envMap[sourceName];
+  if (!meta) return { ok: true, label: '✅ Zero-config' };  // duckduckgo, etc.
+  const missing = meta.vars.filter(v => !process.env[v]);
+  if (missing.length > 0) return { ok: false, label: `❌ Belum diset (${missing.join(', ')})` };
   return { ok: true, label: '✅ API Key tersedia' };
 }
 
 function panelMain(config) {
   const googleStatus = getSourceStatus('google');
   const braveStatus = getSourceStatus('brave');
+  // duckduckgo: always available (zero-config)
 
   const activeSourcesList = [
-    config.sources.google ? '🔵 Google' : null,
     config.sources.brave ? '🟠 Brave' : null,
-  ].filter(Boolean).join(' + ') || '❌ Tidak ada';
+    config.sources.google ? '🔵 Google' : null,
+  ].filter(Boolean).join(' + ') || '❌ Tidak ada (pakai DuckDuckGo fallback)';
 
   const embed = new EmbedBuilder()
     .setColor(config.enabled ? '#5865F2' : '#e74c3c')
@@ -42,13 +44,19 @@ function panelMain(config) {
       { name: '🛡️ Safe Search', value: config.safeSearch ? '✅ Aktif' : '❌ Nonaktif', inline: true },
       { name: '🌐 Sumber Aktif', value: activeSourcesList, inline: true },
       {
-        name: '🔵 Google Custom Search',
-        value: `${config.sources.google ? '✅ Aktif' : '⏸️ Nonaktif'} • ${googleStatus.label}\n100 query/hari gratis`,
+        name: '🦆 DuckDuckGo (zero-config)',
+        value: `${config.sources.duckduckgo ? '✅ Aktif sebagai sumber' : '⏸️ Nonaktif'} • ${config.allowDuckDuckGoFallback ? '✅ Auto-fallback ON' : '❌ Auto-fallback OFF'}\n` +
+          '> Gratis unlimited, langsung jalan tanpa signup. Kualitas: knowledge graph (Wikipedia, definisi).',
         inline: false,
       },
       {
         name: '🟠 Brave Search',
-        value: `${config.sources.brave ? '✅ Aktif' : '⏸️ Nonaktif'} • ${braveStatus.label}\n2000 query/bulan gratis`,
+        value: `${config.sources.brave ? '✅ Aktif' : '⏸️ Nonaktif'} • ${braveStatus.label}\n2000 query/bulan gratis, no kartu kredit`,
+        inline: false,
+      },
+      {
+        name: '🔵 Google Custom Search',
+        value: `${config.sources.google ? '✅ Aktif' : '⏸️ Nonaktif'} • ${googleStatus.label}\n100 query/hari gratis`,
         inline: false,
       },
     )
@@ -90,6 +98,14 @@ function panelMain(config) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
+        .setCustomId('ss_toggle_ddg')
+        .setLabel(config.sources.duckduckgo ? '🦆 DDG: ON' : '🦆 DDG: OFF')
+        .setStyle(config.sources.duckduckgo ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('ss_toggle_ddg_fallback')
+        .setLabel(config.allowDuckDuckGoFallback ? '🦆 Fallback: ON' : '🦆 Fallback: OFF')
+        .setStyle(config.allowDuckDuckGoFallback ? ButtonStyle.Success : ButtonStyle.Danger),
+      new ButtonBuilder()
         .setCustomId('ss_toggle_google')
         .setLabel(config.sources.google ? '🔵 Google: ON' : '🔵 Google: OFF')
         .setStyle(config.sources.google ? ButtonStyle.Success : ButtonStyle.Secondary)
@@ -117,32 +133,36 @@ function panelSetup() {
   const embed = new EmbedBuilder()
     .setColor('#f39c12')
     .setTitle('⚙️ Cara Setup SikmaSearch')
-    .setDescription('Tambahkan API key ke file `.env` kamu untuk mengaktifkan sumber pencarian.')
+    .setDescription([
+      '🦆 **DuckDuckGo** sudah jalan otomatis (zero-config, gratis unlimited).',
+      'Untuk hasil lebih lengkap, tambahkan API key di `.env` (opsional):',
+    ].join('\n'))
     .addFields(
       {
-        name: '🔵 Google Custom Search API (100 query/hari gratis)',
+        name: '🟠 Brave Search API (2000 query/bulan gratis) — RECOMMENDED',
         value: [
-          '1. Buka https://programmablesearchengine.google.com',
-          '2. Buat Search Engine baru → copy **Search Engine ID**',
-          '3. Buka https://console.cloud.google.com → Enable **Custom Search API** → buat API Key',
+          '1. Buka https://brave.com/search/api',
+          '2. Sign up gratis (cuma email, no kartu kredit)',
+          '3. Copy API key dari dashboard',
           '4. Tambahkan ke `.env`:',
           '```',
-          'GOOGLE_SEARCH_API_KEY=api_key_kamu',
-          'GOOGLE_SEARCH_CX=search_engine_id_kamu',
+          'BRAVE_SEARCH_API_KEY=BSAxxxxxx...',
           '```',
-          `Status: ${googleOk.label}`,
+          `Status: ${braveOk.label}`,
         ].join('\n'),
       },
       {
-        name: '🟠 Brave Search API (2000 query/bulan gratis)',
+        name: '🔵 Google Custom Search API (100 query/hari gratis)',
         value: [
-          '1. Buka https://brave.com/search/api',
-          '2. Daftar dan dapatkan API key',
-          '3. Tambahkan ke `.env`:',
+          '1. Buka https://programmablesearchengine.google.com → buat Search Engine → copy **CX**',
+          '2. Buka https://console.cloud.google.com → Enable **Custom Search API** → buat API Key',
+          '3. (Wajib enable billing, free tier tidak charge sampai 100/hari)',
+          '4. Tambahkan ke `.env`:',
           '```',
-          'BRAVE_SEARCH_API_KEY=api_key_kamu',
+          'GOOGLE_SEARCH_API_KEY=AIzaxxxxx...',
+          'GOOGLE_SEARCH_CX=xxxxx:yyyyy',
           '```',
-          `Status: ${braveOk.label}`,
+          `Status: ${googleOk.label}`,
         ].join('\n'),
       },
     );
@@ -249,6 +269,18 @@ export async function execute(interaction) {
     if (id === 'ss_toggle_brave') {
       const cur = getGuildConfig(guildId);
       updateGuildConfig(guildId, { sources: { ...cur.sources, brave: !cur.sources.brave } });
+      return render(i, guildId, page);
+    }
+
+    if (id === 'ss_toggle_ddg') {
+      const cur = getGuildConfig(guildId);
+      updateGuildConfig(guildId, { sources: { ...cur.sources, duckduckgo: !cur.sources.duckduckgo } });
+      return render(i, guildId, page);
+    }
+
+    if (id === 'ss_toggle_ddg_fallback') {
+      const cur = getGuildConfig(guildId);
+      updateGuildConfig(guildId, { allowDuckDuckGoFallback: !cur.allowDuckDuckGoFallback });
       return render(i, guildId, page);
     }
   });
