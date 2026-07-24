@@ -46,13 +46,13 @@ function hexToInt(hex) { return parseInt(String(hex || ACCENT).replace('#', ''),
 export function buildPublicPanelEmbed(panel, guild) {
   const embed = new EmbedBuilder()
     .setColor(hexToInt(panel.color))
-    .setAuthor({ name: `${guild.name} • ${panel.name}`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
-    .setTitle(`${panel.name}`)
-    .setDescription(panel.description || 'Klik tombol di bawah untuk membuka tiket.');
+    .setAuthor({ name: `${guild.name} • ${panel.name}`.slice(0, 256), iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
+    .setTitle(`${panel.name}`.slice(0, 256))
+    .setDescription((panel.description || 'Klik tombol di bawah untuk membuka tiket.').slice(0, 4096));
 
   if (panel.bannerUrl) embed.setImage(panel.bannerUrl);
   if (panel.thumbnailUrl) embed.setThumbnail(panel.thumbnailUrl);
-  if (panel.footerText) embed.setFooter({ text: panel.footerText });
+  if (panel.footerText) embed.setFooter({ text: panel.footerText.slice(0, 2048) });
   embed.setTimestamp();
 
   return embed;
@@ -69,7 +69,7 @@ export function buildPublicPanelComponents(panel) {
   if (panel.displayType === 'select') {
     const options = types.slice(0, 25).map(t =>
       new StringSelectMenuOptionBuilder()
-        .setLabel(t.name)
+        .setLabel(t.name.slice(0, 100))
         .setDescription((t.description || 'Buka tiket').substring(0, 100))
         .setValue(t.id)
         .setEmoji(t.emoji || '🎫')
@@ -98,7 +98,7 @@ export function buildPublicPanelComponents(panel) {
       ...chunk.map(t =>
         new ButtonBuilder()
           .setCustomId(`tv2u_open:${panel.id}:${t.id}`)
-          .setLabel(t.name)
+          .setLabel(t.name.slice(0, 80))
           .setStyle(BUTTON_STYLE[t.buttonStyle] || ButtonStyle.Primary)
           .setEmoji(t.emoji || '🎫')
       )
@@ -144,6 +144,17 @@ export async function publishPanel(guild, panelId, targetChannelId) {
     } catch {
       // Message gone, fall through to send new
     }
+  }
+
+  // If panel was published in a DIFFERENT channel, try to delete the old message first
+  if (panel.panelMessageId && panel.panelMessageChannelId && panel.panelMessageChannelId !== targetChannelId) {
+    try {
+      const oldChannel = await guild.channels.fetch(panel.panelMessageChannelId).catch(() => null);
+      if (oldChannel) {
+        const oldMsg = await oldChannel.messages.fetch(panel.panelMessageId).catch(() => null);
+        if (oldMsg) await oldMsg.delete().catch(() => {});
+      }
+    } catch { /* best-effort */ }
   }
 
   try {
@@ -297,7 +308,7 @@ export async function openTicket({ guild, panel, type, user }) {
       type: ChannelType.GuildText,
       parent: panel.categoryId || null,
       permissionOverwrites: permOverwrites,
-      topic: `🎫 Ticket V2 | ${panel.name} > ${type.name} | ${user.tag}`,
+      topic: `🎫 Ticket V2 | ${panel.name} > ${type.name} | ${user.tag}`.slice(0, 1024),
     });
   } catch (e) {
     return { success: false, error: `Gagal buat channel: ${e.message?.slice(0, 200)}` };
@@ -325,7 +336,7 @@ export async function openTicket({ guild, panel, type, user }) {
   // Welcome embed
   const welcomeEmbed = new EmbedBuilder()
     .setColor(hexToInt(panel.color))
-    .setTitle(`${type.emoji || '🎫'} ${type.name}`)
+    .setTitle(`${type.emoji || '🎫'} ${type.name}`.slice(0, 256))
     .setDescription(
       `Halo <@${user.id}>! Tim kami akan segera membantu kamu.\n` +
       `Sebutkan masalah / pertanyaan kamu secara detail, ya.`
@@ -333,11 +344,11 @@ export async function openTicket({ guild, panel, type, user }) {
     .addFields(
       { name: '👤 Dibuka oleh', value: `<@${user.id}>`, inline: true },
       { name: '🔢 Tiket', value: `#${ticket.number}`, inline: true },
-      { name: '📋 Panel', value: panel.name, inline: true },
-      { name: '🎟️ Tipe', value: `${type.emoji || '🎫'} ${type.name}`, inline: true },
+      { name: '📋 Panel', value: panel.name.slice(0, 256), inline: true },
+      { name: '🎟️ Tipe', value: `${type.emoji || '🎫'} ${type.name}`.slice(0, 256), inline: true },
     )
     .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-    .setFooter({ text: panel.footerText || '🎫 Ticket System' })
+    .setFooter({ text: (panel.footerText || '🎫 Ticket System').slice(0, 2048) })
     .setTimestamp();
 
   const controlsRow = new ActionRowBuilder().addComponents(
@@ -398,7 +409,7 @@ export async function claimTicketAction(interaction, channelId) {
     });
   }
 
-  const updated = claimTicket(ticket.id, interaction.user.id);
+  claimTicket(ticket.id, interaction.user.id);
 
   const embed = new EmbedBuilder()
     .setColor(hexToInt(SUCCESS))
@@ -435,6 +446,10 @@ export async function closeTicketAction(interaction, channelId) {
     reason: 'solved',
     note: '',
   });
+  if (!closed) {
+    console.warn('[tv2u] closeTicket returned null (already closed?) for', ticket.id);
+    return;
+  }
 
   // Analytics
   const settings = getSettings(ticket.guildId);

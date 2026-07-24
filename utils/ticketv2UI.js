@@ -31,9 +31,9 @@ function panelMain(guild, panels, settings, flash = null) {
 
   const embed = new EmbedBuilder()
     .setColor(hexToInt(ACCENT))
-    .setAuthor({ name: `${guild.name} • Ticket V2`, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
+    .setAuthor({ name: `${guild.name} • Ticket V2`.slice(0, 256), iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
     .setTitle('🎫 Ticket System V2 — Settings')
-    .setDescription(desc.join('\n'))
+    .setDescription(desc.join('\n').slice(0, 4096))
     .addFields(
       { name: '📋 Total Panel', value: `${totalActive} panel`, inline: true },
       { name: '🎫 Total Tiket', value: `#${totalTickets}`, inline: true },
@@ -48,10 +48,10 @@ function panelMain(guild, panels, settings, flash = null) {
       },
       {
         name: '📦 Daftar Panel',
-        value: panels.length
+        value: (panels.length
           ? panels.slice(0, 10).map((p, i) =>
-              `\`${i + 1}.\` **${p.name}** — ${(p.ticketTypes || []).length} tipe | ${p.categoryId ? `<#${p.categoryId}>` : '❌ no category'} | ${p.staffRoles?.length || 0} staff`).join('\n')
-          : '*Belum ada panel.*',
+              `\`${i + 1}.\` **${p.name.slice(0, 60)}** — ${(p.ticketTypes || []).length} tipe | ${p.categoryId ? `<#${p.categoryId}>` : '❌ no category'} | ${p.staffRoles?.length || 0} staff`).join('\n')
+          : '*Belum ada panel.*').slice(0, 1024),
         inline: false,
       },
     )
@@ -101,7 +101,7 @@ function panelListPanels(guild, panels) {
 
   for (const p of panels.slice(0, 25)) {
     select.addOptions(new StringSelectMenuOptionBuilder()
-      .setLabel(p.name.slice(0, 90))
+      .setLabel(p.name.slice(0, 80))
       .setDescription(`${(p.ticketTypes || []).length} tipe • ${p.staffRoles?.length || 0} staff`)
       .setValue(p.id)
       .setEmoji('🎫'));
@@ -132,20 +132,20 @@ function panelPanelDetail(guild, panel, flash = null) {
 
   const embed = new EmbedBuilder()
     .setColor(hexToInt(panel.color || ACCENT))
-    .setTitle(`🎫 ${panel.name}`)
-    .setDescription(desc.join('\n'))
+    .setTitle(`🎫 ${panel.name}`.slice(0, 256))
+    .setDescription(desc.join('\n').slice(0, 4096))
     .addFields(
       {
         name: '📝 Deskripsi',
-        value: panel.description || '*kosong*',
+        value: (panel.description || '*kosong*').slice(0, 1024),
         inline: false,
       },
       {
         name: `🎟️ Tipe Tiket (${(panel.ticketTypes || []).length})`,
-        value: panel.ticketTypes?.length
+        value: (panel.ticketTypes?.length
           ? panel.ticketTypes.map((t, i) =>
-              `\`${i + 1}.\` ${t.emoji || '🎫'} **${t.name}** — ${t.description || 'no desc'}`).join('\n')
-          : '*Belum ada tipe.*',
+              `\`${i + 1}.\` ${t.emoji || '🎫'} **${t.name}** — ${(t.description || 'no desc').slice(0, 100)}`).join('\n')
+          : '*Belum ada tipe.*').slice(0, 1024),
         inline: false,
       },
     )
@@ -354,7 +354,10 @@ function modalAddType(panelId) {
 }
 
 function modalConfirmDelete(panelId, panelName) {
-  const short = panelName.length > 25 ? panelName.slice(0, 22) + '...' : panelName;
+  // Label max 45 chars. We have prefix "Ketik HAPUS untuk hapus \"" (22) + "\" " (2) = 24 chars overhead.
+  // So short can be at most 21 chars to stay under 45.
+  const short = panelName.length > 21 ? panelName.slice(0, 18) + '...' : panelName;
+  const label = `Hapus "${short}"? Ketik HAPUS`; // shorter format, ~30 chars
   return new ModalBuilder()
     .setCustomId(`tv2_modal_confirm_delete:${panelId}`)
     .setTitle('Konfirmasi Hapus Panel')
@@ -362,7 +365,7 @@ function modalConfirmDelete(panelId, panelName) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId('confirm')
-          .setLabel(`Ketik HAPUS untuk hapus "${short}"`)
+          .setLabel(label.slice(0, 45))
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(10)

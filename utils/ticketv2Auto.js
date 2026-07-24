@@ -99,6 +99,10 @@ async function autoCloseTicket(guild, ticket, panel) {
     reason: 'inactive',
     note: `Auto-closed after ${panel.autoCloseHours}h of inactivity`,
   });
+  if (!closed) {
+    // Already closed by another process — skip analytics + embed
+    return;
+  }
 
   // Analytics
   const settings = getSettings(guild.id);

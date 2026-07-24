@@ -135,7 +135,7 @@ export async function handleTicketV2Component(interaction) {
   if (cid === 'tv2_settings') {
     // Quick toggle settings
     const s = getSettings(guildId);
-    if (interaction.message.embeds[0]?.data?.title?.includes('Settings')) {
+    if (interaction.message.embeds[0]?.data?.title?.includes('Settings') || interaction.message.embeds[0]?.title?.includes('Settings')) {
       // Already showing - back to main
       return renderInPlace(interaction, 'main');
     }
@@ -225,11 +225,7 @@ export async function handleTicketV2Component(interaction) {
     ] }] });
   }
 
-  // ── Panel detail view (selected from list) ──
-  if (cid === 'tv2_select_panel') {
-    const panelId = interaction.values[0];
-    return renderInPlace(interaction, 'detail', panelId);
-  }
+  // (Note: tv2_select_panel is a StringSelectMenu, handled in handleTicketV2Select, not here.)
 
   // ── Per-panel action buttons (customId: tv2_<action>:<panelId>) ──
   const match = cid.match(/^tv2_(\w+):(.+)$/);
@@ -315,8 +311,8 @@ export async function handleTicketV2Component(interaction) {
             customId: `tv2_type_action:${panelId}`,
             placeholder: '🎟️ Pilih tipe untuk edit/hapus…',
             options: (panel.ticketTypes || []).map((t, i) => ({
-              label: `${t.emoji || '🎫'} ${t.name}`.slice(0, 90),
-              description: t.description?.slice(0, 90) || 'no desc',
+              label: `${t.emoji || '🎫'} ${t.name}`.slice(0, 80),
+              description: t.description?.slice(0, 80) || 'no desc',
               value: t.id,
               emoji: t.emoji || '🎟️',
             })),
@@ -461,8 +457,8 @@ export async function handleTicketV2Select(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(hexToInt(panel.color || ACCENT))
-      .setTitle(`🎟️ Edit/Delete: ${t.name}`)
-      .setDescription(`**Tipe:** ${t.emoji || '🎫'} ${t.name}\n**Description:** ${t.description || '—'}\n**Button Style:** ${t.buttonStyle}\n**Order:** ${t.order}`)
+      .setTitle(`🎟️ Edit/Delete: ${t.name}`.slice(0, 256))
+      .setDescription(`**Tipe:** ${t.emoji || '🎫'} ${t.name}\n**Description:** ${t.description || '—'}\n**Button Style:** ${t.buttonStyle}\n**Order:** ${t.order}`.slice(0, 4096))
       .setTimestamp();
     return safeUpdateOrEdit(interaction, {
       embeds: [embed],

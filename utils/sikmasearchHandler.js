@@ -31,10 +31,10 @@ function buildResultEmbed(searchResult, config, page = 1) {
     const embed = new EmbedBuilder()
       .setColor('#e74c3c')
       .setTitle('🔍 SikmaSearch')
-      .setDescription(`Tidak ada hasil untuk **"${originalQuery}"**.\n\nCoba kata kunci yang berbeda atau ganti mode pencarian.`)
+      .setDescription(`Tidak ada hasil untuk **"${originalQuery.slice(0, 200)}"**.\n\nCoba kata kunci yang berbeda atau ganti mode pencarian.`)
       .addFields({ name: '⚙️ Mode', value: modeLabel, inline: true });
 
-    if (errors.length > 0) embed.addFields({ name: '⚠️ Error', value: errors.join('\n') });
+    if (errors.length > 0) embed.addFields({ name: '⚠️ Error', value: errors.join('\n').slice(0, 1000) });
     return embed;
   }
 
@@ -44,11 +44,16 @@ function buildResultEmbed(searchResult, config, page = 1) {
     return `**${i + 1}.** [**${title}**](${r.url})\n${snippet}\n\`${r.displayUrl}\` ${r.source}`;
   }).join('\n\n');
 
+  // Truncate to 4096 (Discord embed description limit)
+  const safeDescription = resultLines.length > 4000
+    ? resultLines.slice(0, 4000) + '\n\n…(beberapa hasil dipotong karena panjang)'
+    : resultLines;
+
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
     .setAuthor({ name: 'SikmaSearch', iconURL: 'https://cdn3.emoji.gg/emojis/8465-google.png' })
-    .setTitle(`🔍 Hasil: "${originalQuery}"`)
-    .setDescription(resultLines)
+    .setTitle(`🔍 Hasil: "${originalQuery.slice(0, 200)}"`.slice(0, 256))
+    .setDescription(safeDescription)
     .addFields(
       { name: '⚙️ Mode', value: modeLabel, inline: true },
       { name: '📊 Sumber', value: sourcesUsed, inline: true },
@@ -103,7 +108,7 @@ async function sendSearchResult(message, query, config) {
       embeds: [new EmbedBuilder()
         .setColor('#e74c3c')
         .setTitle('❌ Pencarian Gagal')
-        .setDescription(msg + advice)
+        .setDescription((msg + advice).slice(0, 4000))
       ]
     });
   }
