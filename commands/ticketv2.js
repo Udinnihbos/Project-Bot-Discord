@@ -132,23 +132,54 @@ export async function handleTicketV2Component(interaction) {
       ]},
     ] });
   }
-  if (cid === 'tv2_analytics') {
+  if (cid === 'tv2_analytics' || cid === 'tv2_analytics_refresh') {
     const a = (await import('../utils/ticketv2.js')).getAnalytics(guildId);
     const fmt = (ms) => ms == null ? '—' : ms < 60_000 ? `${Math.round(ms/1000)}s` : ms < 3_600_000 ? `${Math.round(ms/60_000)}m` : `${(ms/3_600_000).toFixed(1)}h`;
-    const topHelpers = Object.entries(a.byHelper || {}).sort((x, y) => y[1] - x[1]).slice(0, 5);
-    const topReasons = Object.entries(a.byReason || {}).sort((x, y) => y[1] - x[1]).slice(0, 5);
+    const topHelpers = Object.entries(a.byHelper || {}).sort((x, y) => y[1] - x[1]).slice(0, 10);
+    const topReasons = Object.entries(a.byReason || {}).sort((x, y) => y[1] - x[1]).slice(0, 10);
+    const openRate = a.totalCreated > 0
+      ? Math.round(((a.totalCreated - a.totalClosed) / a.totalCreated) * 100)
+      : 0;
+    // Last 7 days bar chart
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400_000);
+      const key = d.toISOString().split('T')[0];
+      const count = a.byDay?.[key] || 0;
+      const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+      days.push({ label, count });
+    }
+    const maxDay = Math.max(...days.map(d => d.count), 1);
+    const dayChart = days.map(d => {
+      const bar = '█'.repeat(Math.round((d.count / maxDay) * 8));
+      return `\`${d.label.padEnd(8)}\` ${bar} ${d.count}`;
+    }).join('\n');
+    // By hour (peak hours 8-22 + any with data)
+    const hours = Array.from({ length: 24 }, (_, h) => a.byHour?.[h] || 0);
+    const maxHour = Math.max(...hours, 1);
+    const hourChart = hours
+      .map((c, h) => `\`${String(h).padStart(2, '0')}\` ${'█'.repeat(Math.round((c / maxHour) * 6))} ${c}`)
+      .filter((_, h) => hours[h] > 0 || (h >= 8 && h <= 22))
+      .join('\n');
+
     const embed = new EmbedBuilder()
       .setColor(hexToInt(ACCENT))
-      .setTitle('📊 Ticket V2 — Analytics')
+      .setTitle('📊 Ticket V2 — Analytics Dashboard')
       .addFields(
-        { name: '📈 Total', value: `Created: **${a.totalCreated || 0}**\nClosed: **${a.totalClosed || 0}**`, inline: true },
+        { name: '📈 Total', value: `Created: **${a.totalCreated || 0}**\nClosed: **${a.totalClosed || 0}**\nOpen: **${(a.totalCreated || 0) - (a.totalClosed || 0)}** (${openRate}%)`, inline: true },
         { name: '⏱️ SLA', value: `Avg Response: **${fmt(a.avgResponseTimeMs)}**\nAvg Lifetime: **${fmt(a.avgLifetimeMs)}**`, inline: true },
-        { name: '👑 Top Helpers', value: topHelpers.length ? topHelpers.map(([uid, n], i) => `\`${i+1}.\` <@${uid}> — ${n}x`).join('\n') : '—', inline: true },
-        { name: '📊 Close Reasons', value: topReasons.length ? topReasons.map(([r, n]) => `\`${r}\`: ${n}`).join('\n') : '—', inline: true },
+        { name: '👑 Top Helpers', value: topHelpers.length ? topHelpers.map(([uid, n], i) => `\`${i+1}.\` <@${uid}> — ${n}x`).join('\n') : '*Belum ada data*', inline: false },
+        { name: '📊 Close Reasons', value: topReasons.length ? topReasons.map(([r, n]) => `\`${r || 'unknown'}\`: ${n}`).join('\n') : '*Belum ada data*', inline: true },
+        { name: '📅 Last 7 Days', value: dayChart || '*Belum ada data*', inline: true },
+        { name: '🕐 Peak Hours (8-22)', value: hourChart || '*Belum ada data*', inline: false },
       )
+      .setFooter({ text: '🎫 Analytics • Real-time dari database' })
       .setTimestamp();
     return interaction.update({ embeds: [embed], components: [
-      { type: 1, components: [{ type: 2, style: 2, custom_id: 'tv2_back_main', label: '◀ Kembali' }] },
+      { type: 1, components: [
+        { type: 2, style: 2, custom_id: 'tv2_analytics_refresh', label: '🔄 Refresh' },
+        { type: 2, style: 2, custom_id: 'tv2_back_main', label: '◀ Kembali' },
+      ] },
     ] });
   }
   if (cid === 'tv2_toggle_analytics' || cid === 'tv2_toggle_reminder' || cid === 'tv2_toggle_closer') {

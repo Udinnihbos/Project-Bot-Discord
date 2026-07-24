@@ -18,6 +18,7 @@ import {
 } from './commands/ticketv2.js';
 import { handleTicketV2UserInteraction } from './utils/ticketv2UserHandler.js';
 import { trackTicketMessage } from './utils/ticketv2Flow.js';
+import { startAutoFeatureLoop } from './utils/ticketv2Auto.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -59,6 +60,7 @@ client.once('ready', () => {
   client.user.setActivity('🎣 Memancing...', { type: 0 });
   startWeatherNotifier(client);
   startSpawnNotifier(client);
+  startAutoFeatureLoop(client);
 });
 
 // Anti-Raid
