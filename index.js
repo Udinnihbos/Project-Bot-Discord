@@ -136,7 +136,7 @@ client.on('interactionCreate', async interaction => {
     return handleTicketV2Modal(interaction);
   }
   // Ticket V2 (user-facing: open ticket, claim, close)
-  if (interaction.customId.startsWith('tv2u_')) {
+  if (interaction.customId && interaction.customId.startsWith('tv2u_')) {
     return handleTicketV2UserInteraction(interaction);
   }
   if (interaction.isAutocomplete()) {
