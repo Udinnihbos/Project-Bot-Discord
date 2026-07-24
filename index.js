@@ -12,6 +12,10 @@ import { handleSikmasearch } from './utils/sikmasearchHandler.js';
 import { handleSikmaticket } from './utils/sikmaticketHandler.js';
 import { handleActivityComponent, handleActivitySelect, handleActivityModal, handleActivityMessageCreate } from './commands/activity.js';
 import { handleFishingRoleButton, handleFishingRoleSelect } from './commands/fishingrole.js';
+import {
+  handleTicketV2Component, handleTicketV2Select,
+  handleTicketV2Modal, handleTicketV2ActionButton,
+} from './commands/ticketv2.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -106,6 +110,22 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('fishrole_')) {
     return handleFishingRoleSelect(interaction);
+  }
+  // Ticket V2 (admin settings, panel management, type management)
+  if (interaction.isButton() && interaction.customId.startsWith('tv2_')) {
+    return handleTicketV2Component(interaction) || handleTicketV2ActionButton(interaction);
+  }
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith('tv2_')) {
+    return handleTicketV2Select(interaction);
+  }
+  if (interaction.isChannelSelectMenu() && interaction.customId.startsWith('tv2_')) {
+    return handleTicketV2Select(interaction);
+  }
+  if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('tv2_')) {
+    return handleTicketV2Select(interaction);
+  }
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('tv2_')) {
+    return handleTicketV2Modal(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
