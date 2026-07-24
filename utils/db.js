@@ -84,6 +84,13 @@ const FILE_MAPPING = [
   { file: 'sikmasearch.json',       table: 'sikmasearch',        key: 'guildId' },
   { file: 'fishing-config.json',    table: 'fishing_config',     key: 'guildId' },
   { file: 'activity-config.json',   table: 'activity_config',    key: 'guildId' },
+
+  // ticket v2
+  { file: null,                    table: 'ticketv2_panels',          key: 'panelId' },
+  { file: null,                    table: 'ticketv2_tickets',         key: 'ticketId' },
+  { file: null,                    table: 'ticketv2_settings',        key: 'guildId' },
+  { file: null,                    table: 'ticketv2_analytics',       key: 'guildId' },
+  { file: null,                    table: 'ticketv2_panels_archived', key: 'panelId' },
 ];
 
 let db = null;
@@ -119,6 +126,7 @@ function migrateFromJson() {
   console.log('📦 [SQLite] Migrating from JSON (first run)...');
   let count = 0;
   for (const m of FILE_MAPPING) {
+    if (!m.file) continue;  // table without JSON source (e.g. ticketv2_*)
     const fp = join(DATA_DIR, m.file);
     if (!existsSync(fp)) continue;
     try {
