@@ -289,7 +289,33 @@ export async function handleTicketV2Component(interaction) {
     }
 
     if (subAction === 'publish') {
-      return renderInPlace(interaction, 'detail', panelId, '🚀 Publish (auto-post embed) coming in Push #3.');
+      const panel = getPanel(guildId, panelId);
+      if (!panel) return renderInPlace(interaction, 'list', null, '❌ Panel not found.');
+      if (!panel.ticketTypes?.length) {
+        return renderInPlace(interaction, 'detail', panelId, '⚠️ Tambah ticket type dulu sebelum publish.');
+      }
+      const row = {
+        type: 1,
+        components: [{
+          type: 8, // ChannelSelect
+          custom_id: `tv2_publish_channel:${panelId}`,
+          placeholder: '📢 Pilih channel untuk publish panel ini…',
+          channel_types: [0, 5], // GuildText, GuildNews
+          min_values: 0,
+          max_values: 1,
+        }],
+      };
+      const publishedHint = panel.panelMessageChannelId
+        ? `> Panel ini sudah di-publish di <#${panel.panelMessageChannelId}>.\n> Pilih channel lain untuk re-publish / pindah.`
+        : '> Pilih channel tujuan. Bot akan post embed + button/select tiket di sana.';
+      return interaction.update({
+        embeds: [{
+          color: hexToInt(panel.color || ACCENT),
+          title: `🚀 Publish Panel — ${panel.name}`,
+          description: publishedHint,
+        }],
+        components: [row],
+      });
     }
   }
 
@@ -322,6 +348,26 @@ export async function handleTicketV2Select(interaction) {
   }
 
   // ── Channel select for category ──
+  if (cid.startsWith('tv2_publish_channel:')) {
+    const panelId = cid.split(':')[1];
+    const panel = getPanel(guildId, panelId);
+    if (!panel) return renderInPlace(interaction, 'list', null, '❌ Panel not found.');
+    const targetChannelId = values[0];
+    if (!targetChannelId) {
+      return renderInPlace(interaction, 'detail', panelId, '⚠️ Tidak ada channel dipilih.');
+    }
+    // Publish
+    const { publishPanel } = await import('../utils/ticketv2Flow.js');
+    const result = await publishPanel(guild, panelId, targetChannelId);
+    if (!result.success) {
+      return renderInPlace(interaction, 'detail', panelId, `❌ Publish gagal: ${result.error}`);
+    }
+    const flash = result.isUpdate
+      ? `🔄 Panel di-update di <#${targetChannelId}>.`
+      : `✅ Panel di-publish di <#${targetChannelId}>!`;
+    return renderInPlace(interaction, 'detail', panelId, flash);
+  }
+
   if (cid.startsWith('tv2_set_category:')) {
     const panelId = cid.split(':')[1];
     const panel = getPanel(guildId, panelId);

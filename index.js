@@ -16,6 +16,8 @@ import {
   handleTicketV2Component, handleTicketV2Select,
   handleTicketV2Modal, handleTicketV2ActionButton,
 } from './commands/ticketv2.js';
+import { handleTicketV2UserInteraction } from './utils/ticketv2UserHandler.js';
+import { trackTicketMessage } from './utils/ticketv2Flow.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -69,6 +71,8 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
   try { await checkSpam(message); } catch (e) { console.error('Anti-spam error:', e.message); }
   try { await handleActivityMessageCreate(message); } catch (e) { console.error('Activity tracker error:', e.message); }
+  // Ticket V2 message tracker (increments count, marks first staff response)
+  try { await trackTicketMessage(message); } catch (e) { console.error('TicketV2 message tracker error:', e.message); }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -126,6 +130,10 @@ client.on('interactionCreate', async interaction => {
   }
   if (interaction.isModalSubmit() && interaction.customId.startsWith('tv2_')) {
     return handleTicketV2Modal(interaction);
+  }
+  // Ticket V2 (user-facing: open ticket, claim, close)
+  if (interaction.customId.startsWith('tv2u_')) {
+    return handleTicketV2UserInteraction(interaction);
   }
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
