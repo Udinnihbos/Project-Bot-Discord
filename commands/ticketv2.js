@@ -68,14 +68,42 @@ async function renderInPlace(interaction, page, panelId = null, flash = null) {
     case 'detail':
       panel = getPanel(guildId, panelId);
       if (!panel) {
-        return interaction.editReply({ embeds: [{ color: 0xe74c3c, title: '❌ Panel not found' }], components: [] });
+        return safeUpdateOrEdit(interaction, { embeds: [{ color: 0xe74c3c, title: '❌ Panel not found' }], components: [] });
       }
       renderable = panelPanelDetail(guild, panel, flash);
       break;
     case 'closed': renderable = panelClosed(); break;
     default: renderable = panelMain(guild, panels, settings, flash);
   }
-  await interaction.editReply({ embeds: [renderable.embed], components: renderable.rows });
+  return safeUpdateOrEdit(interaction, { embeds: [renderable.embed], components: renderable.rows });
+}
+
+/**
+ * Send a response to an interaction, choosing the right method based on
+ * the interaction's current state:
+ *   - If already replied/deferred → editReply
+ *   - If it's a button/select/modal that hasn't been replied yet → update
+ *   - Otherwise → editReply (will throw if not replied, but caller should ensure)
+ */
+async function safeUpdateOrEdit(interaction, payload) {
+  try {
+    // If already replied or deferred, we must use editReply
+    if (interaction.replied || interaction.deferred) {
+      return await interaction.editReply(payload);
+    }
+    // For components (button/select/modal), use update() which edits the source message
+    if (interaction.isButton?.() || interaction.isStringSelectMenu?.() || interaction.isChannelSelectMenu?.() || interaction.isRoleSelectMenu?.() || interaction.isModalSubmit?.()) {
+      return await interaction.update(payload);
+    }
+    return await interaction.editReply(payload);
+  } catch (e) {
+    // Interaction expired (>3s) or already responded to — silently ignore
+    if (e.code === 10062 || e.code === 40060 || e.message?.includes('expired') || e.message?.includes('already been')) {
+      console.warn('[tv2] Interaction expired/already replied, ignoring');
+      return;
+    }
+    throw e;
+  }
 }
 
 // ════════════════════════════════════════
@@ -436,7 +464,7 @@ export async function handleTicketV2Select(interaction) {
       .setTitle(`🎟️ Edit/Delete: ${t.name}`)
       .setDescription(`**Tipe:** ${t.emoji || '🎫'} ${t.name}\n**Description:** ${t.description || '—'}\n**Button Style:** ${t.buttonStyle}\n**Order:** ${t.order}`)
       .setTimestamp();
-    return interaction.editReply({
+    return safeUpdateOrEdit(interaction, {
       embeds: [embed],
       components: [{
         type: 1,

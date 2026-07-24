@@ -80,6 +80,28 @@ client.on('messageCreate', async message => {
 });
 
 client.on('interactionCreate', async interaction => {
+  // Global error wrapper — prevents unhandled errors from crashing the bot
+  try {
+    return await handleInteraction(interaction);
+  } catch (error) {
+    console.error(`[interactionCreate] Unhandled error (customId=${interaction.customId || 'n/a'}):`, error);
+    try {
+      const errMsg = { content: '❌ Terjadi error tak terduga. Coba lagi.', flags: 64 };
+      if (interaction.replied) await interaction.followUp(errMsg);
+      else if (interaction.deferred) await interaction.editReply(errMsg);
+      else if (interaction.isButton?.() || interaction.isStringSelectMenu?.() || interaction.isChannelSelectMenu?.() || interaction.isRoleSelectMenu?.() || interaction.isModalSubmit?.()) {
+        await interaction.reply({ ...errMsg, ephemeral: true });
+      } else {
+        await interaction.reply(errMsg);
+      }
+    } catch (e) {
+      // Interaction token expired, can't respond — just log
+      console.warn('[interactionCreate] Cannot respond to failed interaction:', e.message);
+    }
+  }
+});
+
+async function handleInteraction(interaction) {
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('rr_dropdown_')) {
     return handleReactionRole(interaction);
   }
@@ -157,6 +179,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.replied || interaction.deferred) await interaction.followUp(errMsg);
     else await interaction.reply(errMsg);
   }
-});
+}
 
 client.login(process.env.DISCORD_TOKEN);
