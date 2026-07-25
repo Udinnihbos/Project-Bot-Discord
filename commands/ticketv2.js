@@ -443,7 +443,7 @@ export async function handleTicketV2Select(interaction) {
     }
     // Publish
     const { publishPanel } = await import('../utils/ticketv2Flow.js');
-    const result = await publishPanel(guild, panelId, targetChannelId);
+    const result = await publishPanel(interaction.guild, panelId, targetChannelId);
     if (!result.success) {
       return renderInPlace(interaction, 'detail', panelId, `❌ Publish gagal: ${result.error}`);
     }
