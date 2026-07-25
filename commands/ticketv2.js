@@ -18,8 +18,10 @@ import {
 } from '../utils/ticketv2.js';
 import {
   panelMain, panelListPanels, panelPanelDetail, panelClosed,
+  panelTemplateList, panelTemplatePreview,
   intToHex, hexToInt, ACCENT,
 } from '../utils/ticketv2UI.js';
+import { TEMPLATES, applyTemplate } from '../utils/ticketv2Templates.js';
 
 function isAdmin(interaction) {
   if (interaction.guild.ownerId === interaction.user.id) return true;
@@ -131,6 +133,23 @@ export async function handleTicketV2Component(interaction) {
   if (cid === 'tv2_create_panel') {
     const { modalCreatePanel } = await import('../utils/ticketv2UI.js');
     return interaction.showModal(modalCreatePanel());
+  }
+  if (cid === 'tv2_template') {
+    // Show template picker
+    const list = panelTemplateList(TEMPLATES);
+    return safeUpdateOrEdit(interaction, { embeds: [list.embed], components: list.rows });
+  }
+  if (cid.startsWith('tv2_template_confirm:')) {
+    const templateId = cid.split(':')[1];
+    const template = applyTemplate(templateId);
+    if (!template) {
+      return safeUpdateOrEdit(interaction, { embeds: [{ color: 0xe74c3c, title: '❌ Template tidak ditemukan.' }], components: [] });
+    }
+    // Create panel from template
+    await interaction.deferUpdate();
+    const panel = addPanel(guildId, template);
+    return renderInPlace(interaction, 'detail', panel.id,
+      `✅ Panel **${template.name}** dibuat dari template! Edit & publish kapan saja.`);
   }
   if (cid === 'tv2_settings') {
     // Quick toggle settings
@@ -400,6 +419,17 @@ export async function handleTicketV2Select(interaction) {
   if (cid === 'tv2_select_panel') {
     const panelId = values[0];
     return renderInPlace(interaction, 'detail', panelId);
+  }
+
+  // ── Template apply (preview before confirming) ──
+  if (cid === 'tv2_template_apply') {
+    const templateId = values[0];
+    const template = TEMPLATES[templateId];
+    if (!template) {
+      return safeUpdateOrEdit(interaction, { embeds: [{ color: 0xe74c3c, title: '❌ Template tidak ditemukan.' }], components: [] });
+    }
+    const preview = panelTemplatePreview(template);
+    return safeUpdateOrEdit(interaction, { embeds: [preview.embed], components: preview.rows });
   }
 
   // ── Channel select for category ──

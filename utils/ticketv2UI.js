@@ -62,19 +62,23 @@ function panelMain(guild, panels, settings, flash = null) {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('tv2_create_panel')
-        .setLabel('➕ Buat Panel')
+        .setLabel('➕ Buat dari Nol')
         .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('tv2_template')
+        .setLabel('📋 Pakai Template')
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId('tv2_manage')
         .setLabel('📦 Kelola Panel')
         .setStyle(ButtonStyle.Primary)
         .setDisabled(panels.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('tv2_settings')
         .setLabel('⚙️ Settings')
         .setStyle(ButtonStyle.Secondary),
-    ),
-    new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('tv2_analytics')
         .setLabel('📊 Analytics')
@@ -82,6 +86,87 @@ function panelMain(guild, panels, settings, flash = null) {
       new ButtonBuilder()
         .setCustomId('tv2_close_panel')
         .setLabel('✖ Tutup')
+        .setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+  return { embed, rows };
+}
+
+/**
+ * Template picker — shows 6 pre-built panel templates.
+ */
+function panelTemplateList(templates) {
+  const embed = new EmbedBuilder()
+    .setColor(hexToInt(ACCENT))
+    .setTitle('📋 Template Panel Siap Pakai')
+    .setDescription(
+      '> Pilih salah satu template di bawah ini untuk langsung membuat panel\n' +
+      '> dengan konfigurasi, warna, dan ticket type yang sudah di-setup.\n' +
+      '> Bisa diedit lagi setelah dibuat.'
+    );
+
+  // Build a select menu
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('tv2_template_apply')
+    .setPlaceholder('📋 Pilih template…');
+
+  for (const id of Object.keys(templates)) {
+    const t = templates[id];
+    // Strip leading emoji from name to avoid duplication in select label
+    const cleanName = t.name.replace(/^[^a-zA-Z0-9]+/, '').trim();
+    select.addOptions(new StringSelectMenuOptionBuilder()
+      .setLabel(cleanName.slice(0, 100))
+      .setDescription(t.description.slice(0, 100))
+      .setValue(t.id)
+      .setEmoji(t.emoji));
+  }
+
+  const rows = [
+    new ActionRowBuilder().addComponents(select),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('tv2_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+  return { embed, rows };
+}
+
+/**
+ * Preview a single template before applying.
+ */
+function panelTemplatePreview(template) {
+  const embed = new EmbedBuilder()
+    .setColor(hexToInt(template.color || ACCENT))
+    .setTitle(`${template.emoji} ${template.name}`)
+    .setDescription(
+      [
+        template.description,
+        '',
+        '**⚙️ Konfigurasi default:**',
+        `• Display: ${template.displayType}`,
+        `• Cooldown: ${template.cooldownSeconds}s | Max/User: ${template.maxTicketsPerUser}`,
+        `• Auto-close: ${template.autoCloseHours}h | Reminder: ${template.reminderHours}h`,
+        '',
+        `**🎟️ ${template.ticketTypes.length} ticket type:**`,
+        template.ticketTypes.map((t, i) =>
+          `\`${i + 1}.\` ${t.emoji} **${t.name}** — ${t.description}`
+        ).join('\n'),
+      ].join('\n').slice(0, 4096)
+    )
+    .setFooter({ text: '📋 Pilih "Terapkan Template" untuk membuat panel dengan konfigurasi ini' })
+    .setTimestamp();
+
+  if (template.bannerUrl) embed.setImage(template.bannerUrl);
+  if (template.thumbnailUrl) embed.setThumbnail(template.thumbnailUrl);
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`tv2_template_confirm:${template.id}`)
+        .setLabel('✅ Terapkan Template')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('tv2_template')
+        .setLabel('◀ Template Lain')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -133,22 +218,35 @@ function panelPanelDetail(guild, panel, flash = null) {
   const embed = new EmbedBuilder()
     .setColor(hexToInt(panel.color || ACCENT))
     .setTitle(`🎫 ${panel.name}`.slice(0, 256))
-    .setDescription(desc.join('\n').slice(0, 4096))
-    .addFields(
-      {
-        name: '📝 Deskripsi',
-        value: (panel.description || '*kosong*').slice(0, 1024),
-        inline: false,
-      },
-      {
-        name: `🎟️ Tipe Tiket (${(panel.ticketTypes || []).length})`,
-        value: (panel.ticketTypes?.length
-          ? panel.ticketTypes.map((t, i) =>
-              `\`${i + 1}.\` ${t.emoji || '🎫'} **${t.name}** — ${(t.description || 'no desc').slice(0, 100)}`).join('\n')
-          : '*Belum ada tipe.*').slice(0, 1024),
-        inline: false,
-      },
-    )
+    .setDescription(desc.join('\n').slice(0, 4096));
+
+  // Show banner & thumbnail info (live preview)
+  if (panel.bannerUrl) embed.setImage(panel.bannerUrl);
+  if (panel.thumbnailUrl) embed.setThumbnail(panel.thumbnailUrl);
+
+  embed.addFields(
+    {
+      name: '🖼️ Tampilan',
+      value: [
+        `Banner: ${panel.bannerUrl ? '✅ diset' : '❌ belum'}`,
+        `Thumbnail: ${panel.thumbnailUrl ? '✅ diset' : '❌ belum'}`,
+      ].join(' • '),
+      inline: true,
+    },
+    {
+      name: '📝 Deskripsi',
+      value: (panel.description || '*kosong*').slice(0, 1024),
+      inline: false,
+    },
+    {
+      name: `🎟️ Tipe Tiket (${(panel.ticketTypes || []).length})`,
+      value: (panel.ticketTypes?.length
+        ? panel.ticketTypes.map((t, i) =>
+            `\`${i + 1}.\` ${t.emoji || '🎫'} **${t.name}** — ${(t.description || 'no desc').slice(0, 100)}`).join('\n')
+        : '*Belum ada tipe.*').slice(0, 1024),
+      inline: false,
+    },
+  )
     .setFooter({ text: '🎫 Panel Management' })
     .setTimestamp();
 
@@ -387,6 +485,7 @@ function panelClosed() {
 
 export {
   panelMain, panelListPanels, panelPanelDetail,
+  panelTemplateList, panelTemplatePreview,
   modalCreatePanel, modalEditBasic, modalEditDesign, modalEditSettings,
   modalAddType, modalConfirmDelete, panelClosed,
   intToHex, hexToInt, ACCENT, SUCCESS, DANGER, WARN, MUTED,
