@@ -19,6 +19,8 @@ import {
 import { handleTicketV2UserInteraction } from './utils/ticketv2UserHandler.js';
 import { trackTicketMessage } from './utils/ticketv2Flow.js';
 import { startAutoFeatureLoop } from './utils/ticketv2Auto.js';
+import { startNotifierLoop } from './utils/notifierScheduler.js';
+import { handleNotifierModal } from './commands/notifier.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -61,6 +63,7 @@ client.once('ready', () => {
   startWeatherNotifier(client);
   startSpawnNotifier(client);
   startAutoFeatureLoop(client);
+  startNotifierLoop(client);
 });
 
 // Anti-Raid
@@ -154,8 +157,17 @@ async function handleInteraction(interaction) {
   if (interaction.isRoleSelectMenu() && interaction.customId.startsWith('tv2_')) {
     return handleTicketV2Select(interaction);
   }
+  // Notifier (channel select for set destination channel)
+  if (interaction.isChannelSelectMenu() && interaction.customId.startsWith('nt_')) {
+    // The collector inside execute() handles this, but if it expired, ignore
+    return;
+  }
   if (interaction.isModalSubmit() && interaction.customId.startsWith('tv2_')) {
     return handleTicketV2Modal(interaction);
+  }
+  // Notifier (modals: nt_modal_*)
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('nt_modal_')) {
+    return handleNotifierModal(interaction);
   }
   // Ticket V2 (user-facing: open ticket, claim, close)
   if (interaction.customId && interaction.customId.startsWith('tv2u_')) {

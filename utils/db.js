@@ -91,6 +91,9 @@ const FILE_MAPPING = [
   { file: null,                    table: 'ticketv2_settings',        key: 'guildId' },
   { file: null,                    table: 'ticketv2_analytics',       key: 'guildId' },
   { file: null,                    table: 'ticketv2_panels_archived', key: 'panelId' },
+
+  // Notifier (YouTube / Twitch) — uses blob storage (readBlob/writeBlob with 'all' key)
+  { file: null,                    table: 'notifier',                key: 'guildId' },
 ];
 
 let db = null;
