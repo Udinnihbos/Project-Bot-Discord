@@ -94,6 +94,9 @@ const FILE_MAPPING = [
 
   // Notifier (YouTube / Twitch) — uses blob storage (readBlob/writeBlob with 'all' key)
   { file: null,                    table: 'notifier',                key: 'guildId' },
+
+  // Announce V2 — uses blob storage
+  { file: null,                    table: 'announce',                key: 'guildId' },
 ];
 
 let db = null;

@@ -21,6 +21,12 @@ import { trackTicketMessage } from './utils/ticketv2Flow.js';
 import { startAutoFeatureLoop } from './utils/ticketv2Auto.js';
 import { startNotifierLoop } from './utils/notifierScheduler.js';
 import { handleNotifierModal } from './commands/notifier.js';
+import {
+  handleAnnounceComponentFull, handleAnnounceModal,
+  handleAnnounceChannelSelect, handleAnnounceSelect,
+  handleAnnouncePermissions,
+} from './commands/announce.js';
+import { startAnnounceScheduler } from './utils/announceScheduler.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -64,6 +70,7 @@ client.once('ready', () => {
   startSpawnNotifier(client);
   startAutoFeatureLoop(client);
   startNotifierLoop(client);
+  startAnnounceScheduler(client);
 });
 
 // Anti-Raid
@@ -168,6 +175,14 @@ async function handleInteraction(interaction) {
   // Notifier (modals: nt_modal_*)
   if (interaction.isModalSubmit() && interaction.customId.startsWith('nt_modal_')) {
     return handleNotifierModal(interaction);
+  }
+  // Announce V2 (components, modals, channel/role/select menus)
+  if (interaction.customId && interaction.customId.startsWith('ann_')) {
+    if (interaction.isModalSubmit()) return handleAnnounceModal(interaction);
+    if (interaction.isChannelSelectMenu()) return handleAnnounceChannelSelect(interaction);
+    if (interaction.isRoleSelectMenu()) return handleAnnouncePermissions(interaction);
+    if (interaction.isStringSelectMenu()) return handleAnnounceSelect(interaction);
+    return handleAnnounceComponentFull(interaction);
   }
   // Ticket V2 (user-facing: open ticket, claim, close)
   if (interaction.customId && interaction.customId.startsWith('tv2u_')) {
