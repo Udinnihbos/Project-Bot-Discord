@@ -97,6 +97,9 @@ const FILE_MAPPING = [
 
   // Announce V2 — uses blob storage
   { file: null,                    table: 'announce',                key: 'guildId' },
+
+  // Reaction Role V2 — uses blob storage
+  { file: null,                    table: 'reactionrole',           key: 'guildId' },
 ];
 
 let db = null;
