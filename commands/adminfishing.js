@@ -945,10 +945,13 @@ export async function handleAdminFishingModal(interaction) {
       if (events.length >= 3) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh.' }], flags: MessageFlags.Ephemeral });
       const presetId = v('preset');
       const durasi = parseInt(v('durasi')) || 60;
+      // Defensive: presets may be missing in DB
+      if (!Array.isArray(eventData.presets)) eventData.presets = [];
       const preset = eventData.presets.find(p => p.id === presetId);
-      if (!preset) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `❌ Preset ${presetId} tidak valid.` }], flags: MessageFlags.Ephemeral });
+      if (!preset) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `❌ Preset ${presetId} tidak valid. Coba: ${eventData.presets.map(p => p.id).join(', ') || '(belum ada preset)'}` }], flags: MessageFlags.Ephemeral });
       const newEvent = { ...preset, id: `${presetId}_${Date.now()}`, startedBy: interaction.user.id, startedAt: Date.now(), endsAt: Date.now() + durasi * 60_000 };
-      addActiveEvent(newEvent);
+      const added = addActiveEvent(newEvent);
+      if (!added) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh saat add.' }], flags: MessageFlags.Ephemeral });
       logAction('Mulai Cuaca Preset', `${presetId} (${durasi}m)`);
       // Announce
       const ch = eventData.announcementChannelId ? await interaction.guild.channels.fetch(eventData.announcementChannelId).catch(() => null) : null;
@@ -986,7 +989,8 @@ export async function handleAdminFishingModal(interaction) {
         startedAt: Date.now(),
         endsAt: Date.now() + durasi * 60_000,
       };
-      addActiveEvent(newEvent);
+      const added = addActiveEvent(newEvent);
+      if (!added) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh saat add.' }], flags: MessageFlags.Ephemeral });
       logAction('Custom Event', v('nama'));
       const eventData = getEventData();
       const ch = eventData.announcementChannelId ? await interaction.guild.channels.fetch(eventData.announcementChannelId).catch(() => null) : null;

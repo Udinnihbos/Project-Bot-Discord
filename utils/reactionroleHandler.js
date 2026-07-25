@@ -89,9 +89,11 @@ export async function handleReactionRole(interaction) {
   // ── BUTTON ──
   if (customId.startsWith('rr_btn_')) {
     // format: rr_btn_{panelId}_{roleId}
+    // panelId may contain underscores (e.g. "color_red"), roleId is the trailing snowflake
     const withoutPrefix = customId.replace('rr_btn_', '');
-    const roleId = withoutPrefix.split('_').pop(); // last part is roleId (snowflake)
-    const panelId = withoutPrefix.slice(0, withoutPrefix.length - roleId.length - 1);
+    const parts = withoutPrefix.split('_');
+    const roleId = parts.pop(); // last part is roleId (snowflake, numeric)
+    const panelId = parts.join('_'); // rejoin remaining parts (preserves underscores in panelId)
 
     const panel = getPanel(interaction.guildId, panelId);
     if (!panel) return interaction.reply({ content: '❌ Panel tidak ditemukan!', flags: MessageFlags.Ephemeral });

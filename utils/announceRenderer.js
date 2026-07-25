@@ -33,10 +33,14 @@ export function canUseAnnounce(interaction) {
  */
 export function renderAnnounce(content, context = {}) {
   const { guild } = context;
+  // Parse color safely
+  let colorInt = 0x3498db;
+  try {
+    const colorStr = String(content.color || '#3498db').replace('#', '').padStart(6, '0').slice(0, 6);
+    if (/^[0-9A-Fa-f]{6}$/.test(colorStr)) colorInt = parseInt(colorStr, 16);
+  } catch { /* keep default */ }
   const embed = new EmbedBuilder()
-    .setColor((content.color || '#3498db').replace('#', '').padStart(6, '0').length === 6
-      ? parseInt(content.color.replace('#', ''), 16)
-      : 0x3498db)
+    .setColor(colorInt)
     .setTitle(`${content.emoji || '📢'} ${substituteVars(content.title || 'Pengumuman', context)}`.slice(0, 256))
     .setDescription(substituteVars(content.description || '', context).slice(0, 4096))
     .setTimestamp();

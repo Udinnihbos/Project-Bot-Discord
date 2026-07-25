@@ -580,9 +580,8 @@ export async function handleReactionRoleComponent(interaction) {
   }
 
   if (cid === 'rr_template_pick') {
-    const templateId = interaction.values[0];
     // Pre-fill modal with template defaults
-    return interaction.showModal(showCreateFromTemplateModal().addComponents());
+    return interaction.showModal(showCreateFromTemplateModal());
   }
 
   if (cid.startsWith('rr_edit_info:')) {

@@ -235,7 +235,7 @@ export async function handleAnnounceComponent(interaction) {
     return showEditDesignModal(interaction, key);
   }
   if (cid.startsWith('ann_edit_channels:')) {
-    return showEditChannelsModal(interaction, key);
+    return showEditChannelsPrompt(interaction, key);
   }
   if (cid.startsWith('ann_edit_ping:')) {
     return togglePing(interaction, key);
@@ -637,7 +637,24 @@ function showSaveTemplateModal(interaction, key) {
   );
 }
 
-async function refreshPreview(interaction, key) {
+async function refreshPreview(interaction, key, mode = null) {
+  // Auto-detect mode from current message components if not provided
+  if (!mode) {
+    try {
+      const components = interaction.message?.components || [];
+      for (const row of components) {
+        for (const c of row.components || []) {
+          if (c.customId?.startsWith('ann_send_now:')) {
+            mode = c.customId.split(':')[1];
+            break;
+          }
+        }
+        if (mode) break;
+      }
+    } catch {}
+    mode = mode || 'send';
+  }
+
   const content = getContent(key) || { ...DEFAULT_CONTENT };
   const previewEmbed = renderAnnounce(content, { guild: interaction.guild });
   const pingStatus = content.pingEveryone ? '🔔 ON' : '🔕 OFF';
@@ -655,18 +672,19 @@ async function refreshPreview(interaction, key) {
     .addFields({ name: '━ Preview ━', value: '↓ ↓ ↓' })
     .setTimestamp();
 
+  const sendLabel = mode === 'schedule' ? '⏰ Lanjut Schedule' : '✅ Kirim';
   const rows = [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('ann_edit_basic:send').setLabel('✏️ Edit Konten').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('ann_edit_design:send').setLabel('🎨 Edit Design').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('ann_edit_channels:send').setLabel('📡 Pilih Channel').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`ann_edit_basic:${mode}`).setLabel('✏️ Edit Konten').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`ann_edit_design:${mode}`).setLabel('🎨 Edit Design').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`ann_edit_channels:${mode}`).setLabel('📡 Pilih Channel').setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('ann_edit_ping:send').setLabel('🔔 Toggle Ping').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('ann_save_template:send').setLabel('💾 Simpan Template').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`ann_edit_ping:${mode}`).setLabel('🔔 Toggle Ping').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`ann_save_template:${mode}`).setLabel('💾 Simpan Template').setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('ann_send_now:send').setLabel('✅ Kirim').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`ann_send_now:${mode}`).setLabel(sendLabel).setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId('ann_cancel').setLabel('🗑️ Batal').setStyle(ButtonStyle.Danger),
     ),
   ];
