@@ -100,6 +100,9 @@ const FILE_MAPPING = [
 
   // Reaction Role V2 — uses blob storage
   { file: null,                    table: 'reactionrole',           key: 'guildId' },
+
+  // Adminfishing V2 — uses blob storage
+  { file: null,                    table: 'adminfishing',           key: 'guildId' },
 ];
 
 let db = null;

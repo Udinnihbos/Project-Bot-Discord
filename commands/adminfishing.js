@@ -1,1008 +1,1122 @@
-import { SlashCommandBuilder, EmbedBuilder, ChannelType } from 'discord.js';
-import { getZonaData, saveZonaData, getFishData, saveFishData, getRodData, saveRodData, getPlayer, savePlayer, getShopData, saveShopData, getSpawnConfig, saveSpawnConfig } from '../utils/database.js';
-import { getRarityEmoji, formatChance, formatNumber, formatGems } from '../utils/fishing.js';;
+/**
+ * /adminfishing V2 — Single button panel for all fishing admin features.
+ *
+ * Was: 24 subcommands across 2 commands (adminfishing + setevent).
+ * Now: one `/adminfishing` with button panel (like /ticketv2).
+ *
+ * Categories (8):
+ *   🗺️ Zona        — addzona, delzona, addzonafish, removezonafish, listzona
+ *   🐟 Ikan        — addfish, delfish
+ *   🎣 Pancingan   — addrod, delrod
+ *   💎 Currency    — addgems, delgems
+ *   ⏰ Event Zona  — addtempzona, spawnfish, setspawninterval, setrestricted
+ *   🌦️ Cuaca       — mulai, custom, setchannel, stop, info
+ *   🛒 Shop        — addshopitem, delshopitem
+ *   📊 Stats       — view quick stats
+ */
+
+import {
+  SlashCommandBuilder, EmbedBuilder, ActionRowBuilder,
+  ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder, ChannelSelectMenuBuilder,
+  ChannelType, RoleSelectMenuBuilder, ModalBuilder,
+  TextInputBuilder, TextInputStyle, PermissionFlagsBits,
+  MessageFlags,
+} from 'discord.js';
+import {
+  getZonaData, saveZonaData, getFishData, saveFishData,
+  getRodData, saveRodData, getPlayer, savePlayer,
+  getShopData, saveShopData, getSpawnConfig, saveSpawnConfig,
+  getEventData, saveEventData, getActiveEvents, addActiveEvent,
+  removeActiveEvent, clearActiveEvents,
+} from '../utils/database.js';
+import { getRarityEmoji, formatChance, formatNumber, formatGems } from '../utils/fishing.js';
+import { RARITY_ORDER } from '../utils/fishing.js';
 import { spawnFish, startAutoInterval, stopAutoInterval } from '../utils/spawnNotifier.js';
 import { hasFishingAccess, denyEmbed } from '../utils/fishingPerms.js';
+import { getGuildConfig, updateGuildConfig, addHistory } from '../utils/adminfishingConfig.js';
+
+// ══════════════
+// COMMAND DEFINITION
+// ══════════════
 
 export const data = new SlashCommandBuilder()
   .setName('adminfishing')
-  .setDescription('⚙️ [OWNER] Kelola zona mancing!')
+  .setDescription('🎣 Admin fishing panel — kelola zona, ikan, pancingan, event, shop, currency')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
-  // ── ZONA ──
-  .addSubcommand(sub =>
-    sub.setName('addzona')
-      .setDescription('Buat zona mancing baru')
-      .addStringOption(opt => opt.setName('id').setDescription('ID unik zona (contoh: laut_dalam)').setRequired(true))
-      .addStringOption(opt => opt.setName('nama').setDescription('Nama zona').setRequired(true))
-      .addStringOption(opt => opt.setName('emoji').setDescription('Emoji zona').setRequired(true))
-      .addStringOption(opt => opt.setName('deskripsi').setDescription('Deskripsi zona').setRequired(true))
-      .addStringOption(opt => opt.setName('warna').setDescription('Warna embed hex (contoh: #3498db)').setRequired(false))
-      .addChannelOption(opt => opt.setName('channel').setDescription('Pilih channel existing (kosongkan = auto create)').setRequired(false))
-      .addStringOption(opt => opt.setName('category').setDescription('ID category untuk auto create channel (opsional)').setRequired(false))
-  )
-  .addSubcommand(sub =>
-    sub.setName('delzona')
-      .setDescription('Hapus zona mancing')
-      .addStringOption(opt => opt.setName('id').setDescription('ID zona').setRequired(true).setAutocomplete(true))
-      .addBooleanOption(opt => opt.setName('del_channel').setDescription('Hapus channel Discord-nya juga? (default: tidak)').setRequired(false))
-  )
-  .addSubcommand(sub => {
-    let s = sub.setName('addzonafish').setDescription('Tambah banyak ikan ke zona sekaligus (max 10)');
-    s = s.addStringOption(opt => opt.setName('zona_id').setDescription('ID zona').setRequired(true).setAutocomplete(true));
-    for (let i = 1; i <= 10; i++) {
-      s = s.addStringOption(opt =>
-        opt.setName(`ikan_${i}`)
-          .setDescription(`Ikan ke-${i}${i === 1 ? ' (wajib)' : ' (opsional)'}`)
-          .setRequired(i === 1)
-          .setAutocomplete(true)
-      );
-    }
-    return s;
-  })
-  .addSubcommand(sub =>
-    sub.setName('removezonafish')
-      .setDescription('Hapus ikan dari zona')
-      .addStringOption(opt => opt.setName('zona_id').setDescription('ID zona').setRequired(true).setAutocomplete(true))
-      .addStringOption(opt => opt.setName('fish_id').setDescription('ID ikan').setRequired(true).setAutocomplete(true))
-  )
-  .addSubcommand(sub =>
-    sub.setName('listzona')
-      .setDescription('Lihat semua zona yang ada')
-  )
+// ══════════════
+// MAIN ENTRY
+// ══════════════
 
-  // ── FISH ──
-  .addSubcommand(sub =>
-    sub.setName('addfish')
-      .setDescription('Tambah ikan baru ke database')
-      .addStringOption(opt => opt.setName('id').setDescription('ID unik ikan (lowercase, no spasi, gunakan _)').setRequired(true))
-      .addStringOption(opt => opt.setName('nama').setDescription('Nama ikan').setRequired(true))
-      .addStringOption(opt => opt.setName('emoji').setDescription('Emoji ikan').setRequired(true))
-      .addStringOption(opt =>
-        opt.setName('rarity').setDescription('Rarity ikan').setRequired(true)
-          .addChoices(
-            { name: '⚪ Common', value: 'Common' },
-            { name: '🟢 Uncommon', value: 'Uncommon' },
-            { name: '🔵 Rare', value: 'Rare' },
-            { name: '🟣 Epic', value: 'Epic' },
-            { name: '🟡 Legendary', value: 'Legendary' },
-            { name: '🔴 Mythic', value: 'Mythic' },
-            { name: '⭐ Secret', value: 'Secret' }
-          )
-      )
-      .addIntegerOption(opt => opt.setName('chance').setDescription('Angka pembilang chance (contoh: 1)').setRequired(true).setMinValue(1))
-      .addIntegerOption(opt => opt.setName('banding').setDescription('Angka penyebut chance (contoh: 100 → berarti 1/100)').setRequired(true).setMinValue(1))
-      .addStringOption(opt =>
-        opt.setName('jenis').setDescription('Satuan penyebut').setRequired(true)
-          .addChoices(
-            { name: 'Biasa (contoh: 1/100)', value: 'biasa' },
-            { name: 'K - Ribu (contoh: 1/1K = 1/1.000)', value: 'k' },
-            { name: 'M - Juta (contoh: 1/1M = 1/1.000.000)', value: 'm' }
-          )
-      )
-      .addIntegerOption(opt => opt.setName('harga').setDescription('Harga jual ikan (coins)').setRequired(true).setMinValue(1))
-      .addStringOption(opt => opt.setName('deskripsi').setDescription('Deskripsi ikan').setRequired(true))
-  )
-  .addSubcommand(sub =>
-    sub.setName('delfish')
-      .setDescription('Hapus ikan dari database')
-      .addStringOption(opt => opt.setName('id').setDescription('ID ikan yang ingin dihapus').setRequired(true).setAutocomplete(true))
-  )
-
-  // ── ROD ──
-  .addSubcommand(sub =>
-    sub.setName('addrod')
-      .setDescription('Tambah pancingan baru ke toko')
-      .addStringOption(opt => opt.setName('id').setDescription('ID unik pancingan (lowercase, gunakan _)').setRequired(true))
-      .addStringOption(opt => opt.setName('nama').setDescription('Nama pancingan').setRequired(true))
-      .addStringOption(opt => opt.setName('emoji').setDescription('Emoji pancingan').setRequired(true))
-      .addStringOption(opt => opt.setName('deskripsi').setDescription('Deskripsi pancingan').setRequired(true))
-      .addIntegerOption(opt => opt.setName('harga').setDescription('Harga beli (coins)').setRequired(true).setMinValue(0))
-      .addIntegerOption(opt => opt.setName('luck').setDescription('Luck bonus dalam % (max 1500)').setRequired(true).setMinValue(0).setMaxValue(1500))
-      .addIntegerOption(opt => opt.setName('cooldown').setDescription('Pengurangan cooldown dalam detik (max 9)').setRequired(true).setMinValue(0).setMaxValue(9))
-      .addNumberOption(opt => opt.setName('mutasi_mult').setDescription('Multiplier harga mutasi ikan (contoh: 2.0 = harga mutasi ×2, default 1.0)').setRequired(false).setMinValue(1.0).setMaxValue(10.0))
-  )
-  .addSubcommand(sub =>
-    sub.setName('delrod')
-      .setDescription('Hapus pancingan dari database')
-      .addStringOption(opt => opt.setName('id').setDescription('ID pancingan yang ingin dihapus').setRequired(true).setAutocomplete(true))
-  )
-
-  // ── GEMS ──
-  .addSubcommand(sub =>
-    sub.setName('addgems')
-      .setDescription('Tambah gems ke user')
-      .addUserOption(opt => opt.setName('user').setDescription('User yang ingin ditambah gems').setRequired(true))
-      .addIntegerOption(opt => opt.setName('jumlah').setDescription('Jumlah gems yang ingin ditambahkan').setRequired(true).setMinValue(1))
-  )
-  .addSubcommand(sub =>
-    sub.setName('delgems')
-      .setDescription('Kurangi gems dari user')
-      .addUserOption(opt => opt.setName('user').setDescription('User yang ingin dikurangi gems').setRequired(true))
-      .addIntegerOption(opt => opt.setName('jumlah').setDescription('Jumlah gems yang ingin dikurangi').setRequired(true).setMinValue(1))
-  )
-
-  // ── ZONA TEMP & SPAWN ──
-  .addSubcommand(sub =>
-    sub.setName('addtempzona')
-      .setDescription('Buat zona event temporary')
-      .addStringOption(opt => opt.setName('id').setDescription('ID unik zona').setRequired(true))
-      .addStringOption(opt => opt.setName('nama').setDescription('Nama zona').setRequired(true))
-      .addStringOption(opt => opt.setName('emoji').setDescription('Emoji zona').setRequired(true))
-      .addStringOption(opt => opt.setName('deskripsi').setDescription('Deskripsi zona').setRequired(true))
-      .addIntegerOption(opt => opt.setName('durasi').setDescription('Durasi zona dalam menit').setRequired(true).setMinValue(1).setMaxValue(1440))
-      .addStringOption(opt => opt.setName('warna').setDescription('Warna embed hex').setRequired(false))
-      .addChannelOption(opt => opt.setName('channel').setDescription('Channel existing (kosongkan = auto create)').setRequired(false))
-      .addStringOption(opt => opt.setName('category').setDescription('ID category untuk auto create channel').setRequired(false))
-  )
-  .addSubcommand(sub =>
-    sub.setName('spawnfish')
-      .setDescription('Spawn ikan eksklusif sementara di zona')
-      .addStringOption(opt => opt.setName('zona_id').setDescription('ID zona').setRequired(true).setAutocomplete(true))
-      .addStringOption(opt => opt.setName('fish_id').setDescription('ID ikan').setRequired(true).setAutocomplete(true))
-      .addIntegerOption(opt => opt.setName('durasi').setDescription('Durasi spawn dalam menit').setRequired(true).setMinValue(1).setMaxValue(120))
-  )
-  .addSubcommand(sub =>
-    sub.setName('setrestricted')
-      .setDescription('Set zona jadi restricted (butuh tiket) atau unset')
-      .addStringOption(opt => opt.setName('zona_id').setDescription('ID zona').setRequired(true).setAutocomplete(true))
-      .addBooleanOption(opt => opt.setName('restricted').setDescription('true = restricted, false = bebas').setRequired(true))
-      .addIntegerOption(opt => opt.setName('harga_coins').setDescription('Harga tiket dalam coins (0 = gratis)').setRequired(false))
-      .addIntegerOption(opt => opt.setName('harga_gems').setDescription('Harga tiket dalam gems (0 = tidak bisa bayar gems)').setRequired(false))
-  )
-  .addSubcommand(sub =>
-    sub.setName('setspawninterval')
-      .setDescription('Set interval otomatis spawn ikan eksklusif')
-      .addIntegerOption(opt => opt.setName('menit').setDescription('Interval dalam menit (0 = matikan auto spawn)').setRequired(true).setMinValue(0).setMaxValue(1440))
-  )
-
-  // ── SHOP ──
-  .addSubcommand(sub =>
-    sub.setName('addshopitem')
-      .setDescription('Tambah item baru ke FishShop')
-      .addStringOption(opt => opt.setName('id').setDescription('ID unik item').setRequired(true))
-      .addStringOption(opt => opt.setName('nama').setDescription('Nama item').setRequired(true))
-      .addStringOption(opt => opt.setName('emoji').setDescription('Emoji item').setRequired(true))
-      .addStringOption(opt => opt.setName('deskripsi').setDescription('Deskripsi item').setRequired(true))
-      .addStringOption(opt =>
-        opt.setName('tipe').setDescription('Tipe item').setRequired(true)
-          .addChoices(
-            { name: '🎟️ Tiket Zona', value: 'ticket' },
-            { name: '🪱 Umpan', value: 'bait' },
-            { name: '🎒 Item', value: 'item' },
-            { name: '💰 Mata Uang', value: 'currency' }
-          )
-      )
-      .addIntegerOption(opt => opt.setName('harga_coins').setDescription('Harga dalam coins (0 = tidak bisa beli coins)').setRequired(true).setMinValue(0))
-      .addIntegerOption(opt => opt.setName('harga_gems').setDescription('Harga dalam gems (0 = tidak bisa beli gems)').setRequired(true).setMinValue(0))
-      .addStringOption(opt => opt.setName('zona_id').setDescription('ID zona (wajib jika tipe tiket)').setRequired(false).setAutocomplete(true))
-  )
-  .addSubcommand(sub =>
-    sub.setName('delshopitem')
-      .setDescription('Hapus item dari FishShop')
-      .addStringOption(opt => opt.setName('id').setDescription('ID item yang ingin dihapus').setRequired(true).setAutocomplete(true))
-  );
-
-// ⛔ AUTO-GATED BY gate-fishing.js
 export async function execute(interaction) {
+  // Permission check
   const access = await hasFishingAccess(interaction);
   if (!access.allowed) {
-    return interaction.reply({ embeds: [denyEmbed(interaction)], ephemeral: true });
+    return interaction.reply({ embeds: [denyEmbed(interaction)], flags: MessageFlags.Ephemeral });
   }
   if (interaction.user.id !== process.env.OWNER_ID) {
     return interaction.reply({
-      embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Akses Ditolak').setDescription('Hanya untuk **Owner**!')],
-      ephemeral: true
+      embeds: [{ color: 0xe74c3c, title: '❌ Akses Ditolak', description: 'Hanya untuk **Owner**!' }],
+      flags: MessageFlags.Ephemeral,
     });
   }
 
-  const sub = interaction.options.getSubcommand();
+  return showMainPanel(interaction);
+}
 
-  // ════════════════════════════════
-  // ZONA
-  // ════════════════════════════════
+// ══════════════
+// MAIN PANEL
+// ══════════════
 
-  if (sub === 'addzona') {
-    const zonaData = getZonaData();
-    const id = interaction.options.getString('id').toLowerCase().replace(/\s+/g, '_');
-    const nama = interaction.options.getString('nama');
-    const emoji = interaction.options.getString('emoji');
-    const deskripsi = interaction.options.getString('deskripsi');
-    const warna = interaction.options.getString('warna') || '#3498db';
-    const existingChannel = interaction.options.getChannel('channel');
-    const categoryId = interaction.options.getString('category');
+async function showMainPanel(interaction) {
+  const { guildId } = interaction;
+  const zonaData = getZonaData();
+  const fishData = getFishData();
+  const rodData = getRodData();
+  const shopData = getShopData();
+  const eventData = getEventData();
+  const activeEvents = getActiveEvents();
+  const spawnConfig = getSpawnConfig();
 
-    if (zonaData.zonas[id]) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ ID Sudah Ada').setDescription(`Zona **\`${id}\`** sudah ada!`)],
-        ephemeral: true
-      });
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🎣 Admin Fishing Panel')
+    .setDescription('Kelola semua aspek fishing system dari sini.\nKlik kategori di bawah untuk mulai.')
+    .addFields(
+      { name: '🗺️ Zona', value: `${Object.keys(zonaData.zonas).length} zona`, inline: true },
+      { name: '🐟 Ikan', value: `${fishData.fish?.length || 0} species`, inline: true },
+      { name: '🎣 Pancingan', value: `${rodData.rods?.length || 0} rod`, inline: true },
+      { name: '🛒 Shop', value: `${shopData.items?.length || 0} item`, inline: true },
+      { name: '🌦️ Event Aktif', value: `${activeEvents.length}/3 stack`, inline: true },
+      { name: '⏰ Auto Spawn', value: spawnConfig.spawnInterval ? `Tiap ${spawnConfig.spawnInterval} menit` : 'Off', inline: true },
+    )
+    .setFooter({ text: '🎣 Admin Panel • Pilih kategori di bawah' })
+    .setTimestamp();
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_zone').setLabel('🗺️ Zona').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('af_fish').setLabel('🐟 Ikan').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('af_rod').setLabel('🎣 Pancingan').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_event').setLabel('⏰ Event Zona').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_weather').setLabel('🌦️ Cuaca').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_shop').setLabel('🛒 Shop').setStyle(ButtonStyle.Success),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_currency').setLabel('💎 Currency').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('af_stats').setLabel('📊 Stats').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('af_history').setLabel('📜 History').setStyle(ButtonStyle.Secondary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_close').setLabel('✖ Tutup').setStyle(ButtonStyle.Danger),
+    ),
+  ];
+
+  if (interaction.replied || interaction.deferred) {
+    return interaction.editReply({ embeds: [embed], components: rows });
+  }
+  return interaction.reply({ embeds: [embed], components: rows, flags: MessageFlags.Ephemeral });
+}
+
+// ══════════════
+// CATEGORY PANELS
+// ══════════════
+
+async function showZonePanel(interaction) {
+  const zonaData = getZonaData();
+  const zonas = Object.values(zonaData.zonas);
+  const lines = zonas.length
+    ? zonas.slice(0, 10).map((z, i) =>
+        `\`${i + 1}.\` ${z.emoji} **${z.nama}** (\`${z.id}\`) — <#${z.channelId}> • ${z.fish.length} ikan${z.restricted ? ' 🔒' : ''}${z.isTemp ? ' ⏰' : ''}`
+      ).join('\n')
+    : '*Belum ada zona.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🗺️ Zona Management')
+    .setDescription(lines.slice(0, 3500))
+    .setFooter({ text: `${zonas.length} zona total` });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_zone_add').setLabel('➕ Buat Zona').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_zone_list').setLabel('📋 Lihat Semua').setStyle(ButtonStyle.Secondary).setDisabled(zonas.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_zone_addfish').setLabel('➕ Tambah Ikan ke Zona').setStyle(ButtonStyle.Primary).setDisabled(zonas.length === 0),
+      new ButtonBuilder().setCustomId('af_zone_removefish').setLabel('➖ Hapus Ikan dari Zona').setStyle(ButtonStyle.Primary).setDisabled(zonas.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_zone_delete').setLabel('🗑️ Hapus Zona').setStyle(ButtonStyle.Danger).setDisabled(zonas.length === 0),
+      new ButtonBuilder().setCustomId('af_zone_restricted').setLabel('🔒 Set Restricted').setStyle(ButtonStyle.Secondary).setDisabled(zonas.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showFishPanel(interaction) {
+  const fishData = getFishData();
+  const fish = fishData.fish || [];
+  const lines = fish.length
+    ? fish.slice(0, 10).map((f, i) => `\`${i + 1}.\` ${f.emoji} **${f.name}** (${f.rarity}) — \`${f.id}\``).join('\n')
+    : '*Belum ada ikan.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🐟 Fish Database')
+    .setDescription(lines.slice(0, 3500))
+    .setFooter({ text: `${fish.length} species total` });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_fish_add').setLabel('➕ Tambah Ikan').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_fish_delete').setLabel('🗑️ Hapus Ikan').setStyle(ButtonStyle.Danger).setDisabled(fish.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showRodPanel(interaction) {
+  const rodData = getRodData();
+  const rods = rodData.rods || [];
+  const lines = rods.length
+    ? rods.slice(0, 10).map((r, i) => `\`${i + 1}.\` ${r.emoji} **${r.name}** — 🪙 ${formatNumber(r.price)} • +${r.luckBonus}% luck • -${r.cooldownReduction}s cd`).join('\n')
+    : '*Belum ada pancingan.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🎣 Rod Database')
+    .setDescription(lines.slice(0, 3500))
+    .setFooter({ text: `${rods.length} rods total` });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_rod_add').setLabel('➕ Tambah Rod').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_rod_delete').setLabel('🗑️ Hapus Rod').setStyle(ButtonStyle.Danger).setDisabled(rods.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showCurrencyPanel(interaction) {
+  const embed = new EmbedBuilder()
+    .setColor(0x00d4ff)
+    .setTitle('💎 Currency Management')
+    .setDescription('Tambah/kurangi Gems user. Coins tidak bisa di-edit manual (didapat dari main game).');
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_cur_add').setLabel('➕ Tambah Gems').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_cur_del').setLabel('➖ Kurangi Gems').setStyle(ButtonStyle.Danger),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showEventPanel(interaction) {
+  const spawnConfig = getSpawnConfig();
+  const activeEvents = getActiveEvents();
+  const zonas = Object.values(getZonaData().zonas);
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf39c12)
+    .setTitle('⏰ Event Zona Management')
+    .setDescription(
+      `**Auto Spawn:** ${spawnConfig.spawnInterval ? `✅ Tiap ${spawnConfig.spawnInterval} menit` : '❌ Off'}\n` +
+      `**Active Temp Zona:** ${activeEvents.filter(e => e.isTemp).length}\n` +
+      `**Total Zona:** ${zonas.length}`
+    )
+    .setFooter({ text: '⏰ Event Zona • Untuk event cuaca, buka tab 🌦️ Cuaca' });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_evt_temp').setLabel('⏰ Buat Temp Zona').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_evt_spawn').setLabel('🐟 Spawn Ikan').setStyle(ButtonStyle.Primary).setDisabled(zonas.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_evt_setinterval').setLabel('⏱️ Set Auto-Spawn Interval').setStyle(ButtonStyle.Secondary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showWeatherPanel(interaction) {
+  const eventData = getEventData();
+  const activeEvents = getActiveEvents();
+  const templates = getGuildConfig(interaction.guildId).eventTemplates;
+
+  const lines = activeEvents.length
+    ? activeEvents.map((e, i) => {
+        const rem = e.endsAt ? `<t:${Math.floor(e.endsAt / 1000)}:R>` : '∞';
+        return `**${i + 1}.** ${e.emoji} **${e.name}** — ⏱️ ${rem} | ID: \`${e.id}\``;
+      }).join('\n')
+    : '*Tidak ada event aktif.*';
+
+  const tplLines = Object.values(templates).map(t => `${t.emoji} **${t.name}** (${t.id})`).join('\n');
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf39c12)
+    .setTitle('🌦️ Cuaca/Event Management')
+    .setDescription(
+      `**Event Aktif (${activeEvents.length}/3 stack):**\n${lines}\n\n` +
+      `**Channel Pengumuman:** ${eventData.announcementChannelId ? `<#${eventData.announcementChannelId}>` : '❌ Belum diset'}\n\n` +
+      `**Template Tersimpan:**\n${tplLines || '*Belum ada template*'}`
+    )
+    .setFooter({ text: '🌦️ Weather System' });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_wx_mulai').setLabel('▶️ Mulai Preset').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_wx_custom').setLabel('⚙️ Custom Event').setStyle(ButtonStyle.Success),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_wx_template').setLabel('📋 Pakai Template').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('af_wx_setchannel').setLabel('📢 Set Channel').setStyle(ButtonStyle.Secondary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_wx_stop').setLabel('⏹️ Stop Event').setStyle(ButtonStyle.Danger),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showShopPanel(interaction) {
+  const shopData = getShopData();
+  const items = shopData.items || [];
+  const lines = items.length
+    ? items.slice(0, 10).map((i, idx) => `\`${idx + 1}.\` ${i.emoji} **${i.name}** (${i.type}) — 🪙 ${formatNumber(i.priceCoins || 0)} ${i.priceGems ? `💎 ${i.priceGems}` : ''}`.trim()).join('\n')
+    : '*Belum ada item di shop.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🛒 Shop Management')
+    .setDescription(lines.slice(0, 3500))
+    .setFooter({ text: `${items.length} item total` });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_shop_add').setLabel('➕ Tambah Item').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_shop_del').setLabel('🗑️ Hapus Item').setStyle(ButtonStyle.Danger).setDisabled(items.length === 0),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showStatsPanel(interaction) {
+  const zonaData = getZonaData();
+  const fishData = getFishData();
+  const rodData = getRodData();
+  const shopData = getShopData();
+  const eventData = getEventData();
+  const activeEvents = getActiveEvents();
+  const totalRoles = rodData.rods?.reduce((s, r) => s + 1, 0) || 0;
+
+  const restrictedCount = Object.values(zonaData.zonas).filter(z => z.restricted).length;
+  const tempCount = Object.values(zonaData.zonas).filter(z => z.isTemp).length;
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('📊 Fishing System Stats')
+    .addFields(
+      { name: '🗺️ Zona', value: `Total: **${Object.keys(zonaData.zonas).length}**\n🔒 Restricted: ${restrictedCount}\n⏰ Temp: ${tempCount}`, inline: true },
+      { name: '🐟 Ikan', value: `Total: **${fishData.fish?.length || 0}**`, inline: true },
+      { name: '🎣 Pancingan', value: `Total: **${rodData.rods?.length || 0}**`, inline: true },
+      { name: '🛒 Shop Items', value: `Total: **${shopData.items?.length || 0}**`, inline: true },
+      { name: '🌦️ Event Aktif', value: `${activeEvents.length}/3 stack`, inline: true },
+      { name: '📢 Announce Channel', value: eventData.announcementChannelId ? `<#${eventData.announcementChannelId}>` : '❌', inline: true },
+    )
+    .setTimestamp();
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+async function showHistoryPanel(interaction) {
+  const history = getGuildConfig(interaction.guildId).history || [];
+  const lines = history.length
+    ? history.slice(0, 15).map((h, i) => {
+        const when = `<t:${Math.floor(h.at / 1000)}:R>`;
+        return `\`${i + 1}.\` **${h.action}** — ${when} • ${h.detail || '-'}`;
+      }).join('\n')
+    : '*Belum ada history.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x95a5a6)
+    .setTitle('📜 Admin History (15 terakhir)')
+    .setDescription(lines.slice(0, 4000))
+    .setFooter({ text: 'Auto-logged dari /adminfishing actions' });
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_back_main').setLabel('◀ Kembali').setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+
+  return updateInteraction(interaction, { embeds: [embed], components: rows });
+}
+
+// Helper
+function updateInteraction(interaction, payload) {
+  if (interaction.replied || interaction.deferred) {
+    return interaction.update(payload);
+  }
+  return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+}
+
+// ══════════════
+// MODAL DEFINITIONS
+// ══════════════
+
+const modals = {
+  zone_add: () => new ModalBuilder()
+    .setCustomId('af_modal_zone_add')
+    .setTitle('➕ Buat Zona Mancing')
+    .addComponents(
+      actionRowText('id', 'ID Zona (lowercase, contoh: laut_dalam)', true, 30),
+      actionRowText('nama', 'Nama Zona', true, 50),
+      actionRowText('emoji', 'Emoji (1-4 char)', true, 4),
+      actionRowParagraph('deskripsi', 'Deskripsi', true, 300),
+      actionRowText('warna', 'Warna hex (contoh: #3498db)', false, 7),
+    ),
+  zone_addfish: () => {
+    const m = new ModalBuilder()
+      .setCustomId('af_modal_zone_addfish')
+      .setTitle('➕ Tambah Ikan ke Zona')
+      .addComponents(
+        actionRowText('zona_id', 'ID Zona (contoh: laut_dalam)', true, 30),
+        actionRowText('ikan_1', 'ID Ikan (wajib)', true, 50),
+        actionRowText('ikan_2', 'ID Ikan ke-2 (opsional)', false, 50),
+        actionRowText('ikan_3', 'ID Ikan ke-3 (opsional)', false, 50),
+        actionRowText('ikan_4', 'ID Ikan ke-4 (opsional)', false, 50),
+      );
+    return m;
+  },
+  zone_removefish: () => new ModalBuilder()
+    .setCustomId('af_modal_zone_removefish')
+    .setTitle('➖ Hapus Ikan dari Zona')
+    .addComponents(
+      actionRowText('zona_id', 'ID Zona', true, 30),
+      actionRowText('fish_id', 'ID Ikan', true, 50),
+    ),
+  zone_delete: () => new ModalBuilder()
+    .setCustomId('af_modal_zone_delete')
+    .setTitle('🗑️ Hapus Zona')
+    .addComponents(
+      actionRowText('id', 'ID Zona', true, 30),
+      actionRowText('del_channel', 'Hapus channel juga? (yes/no, default no)', false, 5),
+    ),
+  zone_restricted: () => new ModalBuilder()
+    .setCustomId('af_modal_zone_restricted')
+    .setTitle('🔒 Set Restricted Zona')
+    .addComponents(
+      actionRowText('zona_id', 'ID Zona', true, 30),
+      actionRowText('restricted', 'true / false', true, 5),
+      actionRowText('harga_coins', 'Harga tiket (coins, 0=gratis)', false, 10),
+      actionRowText('harga_gems', 'Harga tiket (gems, 0=tidak bisa gems)', false, 10),
+    ),
+  fish_add: () => new ModalBuilder()
+    .setCustomId('af_modal_fish_add')
+    .setTitle('🐟 Tambah Ikan Baru')
+    .addComponents(
+      actionRowText('id', 'ID Ikan (lowercase, no spasi)', true, 30),
+      actionRowText('nama', 'Nama Ikan', true, 50),
+      actionRowText('emoji', 'Emoji (1-4 char)', true, 4),
+      actionRowText('rarity', 'Rarity (Common/Rare/Epic/dll)', true, 20),
+      actionRowText('chance', 'Pembilang chance (mis. 1)', true, 6),
+      actionRowText('banding', 'Penyebut (mis. 100 = 1/100)', true, 10),
+      actionRowText('jenis', 'Satuan: biasa/k/m', false, 10),
+      actionRowText('harga', 'Harga jual (coins)', true, 10),
+      actionRowText('deskripsi', 'Deskripsi Ikan', true, 200),
+    ),
+  fish_delete: () => new ModalBuilder()
+    .setCustomId('af_modal_fish_delete')
+    .setTitle('🗑️ Hapus Ikan')
+    .addComponents(actionRowText('id', 'ID Ikan', true, 30)),
+  rod_add: () => new ModalBuilder()
+    .setCustomId('af_modal_rod_add')
+    .setTitle('🎣 Tambah Pancingan')
+    .addComponents(
+      actionRowText('id', 'ID Pancingan', true, 30),
+      actionRowText('nama', 'Nama', true, 50),
+      actionRowText('emoji', 'Emoji', true, 4),
+      actionRowText('deskripsi', 'Deskripsi', true, 200),
+      actionRowText('harga', 'Harga (coins)', true, 10),
+      actionRowText('luck', 'Luck bonus % (max 1500)', true, 5),
+      actionRowText('cooldown', 'Pengurangan cooldown (detik, max 9)', true, 2),
+      actionRowText('mutasi_mult', 'Multiplier mutasi (default 1.0, max 10)', false, 5),
+    ),
+  rod_delete: () => new ModalBuilder()
+    .setCustomId('af_modal_rod_delete')
+    .setTitle('🗑️ Hapus Pancingan')
+    .addComponents(actionRowText('id', 'ID Pancingan', true, 30)),
+  cur_user_add: () => new ModalBuilder()
+    .setCustomId('af_modal_cur_add')
+    .setTitle('💎 Tambah Gems')
+    .addComponents(
+      actionRowText('user_id', 'User ID atau @mention', true, 30),
+      actionRowText('jumlah', 'Jumlah gems', true, 10),
+    ),
+  cur_user_del: () => new ModalBuilder()
+    .setCustomId('af_modal_cur_del')
+    .setTitle('💎 Kurangi Gems')
+    .addComponents(
+      actionRowText('user_id', 'User ID', true, 30),
+      actionRowText('jumlah', 'Jumlah gems', true, 10),
+    ),
+  evt_temp: () => new ModalBuilder()
+    .setCustomId('af_modal_evt_temp')
+    .setTitle('⏰ Buat Temp Zona')
+    .addComponents(
+      actionRowText('id', 'ID Zona', true, 30),
+      actionRowText('nama', 'Nama', true, 50),
+      actionRowText('emoji', 'Emoji', true, 4),
+      actionRowText('deskripsi', 'Deskripsi', true, 300),
+      actionRowText('durasi', 'Durasi (menit)', true, 5),
+      actionRowText('warna', 'Warna hex (default #f39c12)', false, 7),
+    ),
+  evt_spawn: () => new ModalBuilder()
+    .setCustomId('af_modal_evt_spawn')
+    .setTitle('🐟 Spawn Ikan Eksklusif')
+    .addComponents(
+      actionRowText('zona_id', 'ID Zona', true, 30),
+      actionRowText('fish_id', 'ID Ikan', true, 50),
+      actionRowText('durasi', 'Durasi spawn (menit, max 120)', true, 4),
+    ),
+  evt_setinterval: () => new ModalBuilder()
+    .setCustomId('af_modal_evt_setinterval')
+    .setTitle('⏱️ Set Auto-Spawn Interval')
+    .addComponents(actionRowText('menit', 'Interval (menit, 0=matikan)', true, 5)),
+  wx_mulai: () => new ModalBuilder()
+    .setCustomId('af_modal_wx_mulai')
+    .setTitle('▶️ Mulai Event Cuaca Preset')
+    .addComponents(
+      actionRowText('preset', 'ID Preset Cuaca', true, 20),
+      actionRowText('durasi', 'Durasi (menit)', true, 5),
+    ),
+  wx_custom: () => new ModalBuilder()
+    .setCustomId('af_modal_wx_custom')
+    .setTitle('⚙️ Custom Event Cuaca')
+    .addComponents(
+      actionRowText('nama', 'Nama Event', true, 50),
+      actionRowText('emoji', 'Emoji', true, 4),
+      actionRowText('deskripsi', 'Deskripsi', true, 300),
+      actionRowText('durasi', 'Durasi (menit)', true, 5),
+      actionRowText('luck', 'Global luck bonus +%', true, 5),
+      actionRowText('luck_mode', 'add / multiply', true, 10),
+      actionRowText('luck_multiplier', 'Multiplier luck (kalau mode multiply)', false, 3),
+      actionRowText('common_mult', 'Multiplier Common (default 1)', false, 4),
+      actionRowText('uncommon_mult', 'Multiplier Uncommon (default 1)', false, 4),
+      actionRowText('rare_mult', 'Multiplier Rare (default 1)', false, 4),
+      actionRowText('epic_mult', 'Multiplier Epic (default 1)', false, 4),
+      actionRowText('legendary_mult', 'Multiplier Legendary (default 1)', false, 4),
+      actionRowText('mythic_mult', 'Multiplier Mythic (default 1)', false, 4),
+      actionRowText('secret_mult', 'Multiplier Secret (default 1)', false, 4),
+    ),
+  wx_setchannel: () => new ModalBuilder()
+    .setCustomId('af_modal_wx_setchannel')
+    .setTitle('📢 Set Channel Pengumuman')
+    .addComponents(actionRowText('channel_id', 'Channel ID (kosongkan untuk reset)', false, 25)),
+  wx_stop: () => new ModalBuilder()
+    .setCustomId('af_modal_wx_stop')
+    .setTitle('⏹️ Stop Event')
+    .addComponents(actionRowText('event_id', 'Event ID (kosongkan = stop semua)', false, 30)),
+  wx_template: () => new ModalBuilder()
+    .setCustomId('af_modal_wx_template')
+    .setTitle('📋 Pakai Template Event')
+    .addComponents(
+      actionRowText('template_id', 'Template: weekend_boost / golden_hour / maintenance', true, 30),
+      actionRowText('durasi', 'Durasi (menit)', true, 5),
+    ),
+  shop_add: () => new ModalBuilder()
+    .setCustomId('af_modal_shop_add')
+    .setTitle('🛒 Tambah Item Shop')
+    .addComponents(
+      actionRowText('id', 'ID Item', true, 30),
+      actionRowText('nama', 'Nama Item', true, 50),
+      actionRowText('emoji', 'Emoji', true, 4),
+      actionRowText('deskripsi', 'Deskripsi', true, 200),
+      actionRowText('tipe', 'Tipe: ticket/bait/item/currency', true, 15),
+      actionRowText('harga_coins', 'Harga coins', true, 10),
+      actionRowText('harga_gems', 'Harga gems', true, 10),
+      actionRowText('zona_id', 'ID Zona (wajib untuk tipe ticket)', false, 30),
+    ),
+  shop_del: () => new ModalBuilder()
+    .setCustomId('af_modal_shop_del')
+    .setTitle('🗑️ Hapus Item Shop')
+    .addComponents(actionRowText('id', 'ID Item', true, 30)),
+};
+
+function actionRowText(customId, label, required, maxLength) {
+  return new ActionRowBuilder().addComponents(
+    new TextInputBuilder().setCustomId(customId).setLabel(label).setStyle(TextInputStyle.Short).setRequired(!!required).setMaxLength(maxLength || 100)
+  );
+}
+function actionRowParagraph(customId, label, required, maxLength) {
+  return new ActionRowBuilder().addComponents(
+    new TextInputBuilder().setCustomId(customId).setLabel(label).setStyle(TextInputStyle.Paragraph).setRequired(!!required).setMaxLength(maxLength || 1000)
+  );
+}
+
+// ══════════════
+// COMPONENT HANDLER
+// ══════════════
+
+export async function handleAdminFishingComponent(interaction) {
+  if (!interaction.guildId) return false;
+  if (!interaction.customId?.startsWith('af_')) return false;
+  if (interaction.customId.startsWith('af_modal_')) return false; // modal handled separately
+
+  const cid = interaction.customId;
+
+  if (cid === 'af_close') {
+    return interaction.update({ embeds: [{ color: 0x95a5a6, title: '✖ Ditutup' }], components: [] });
+  }
+  if (cid === 'af_back_main') {
+    return showMainPanelAsUpdate(interaction);
+  }
+
+  // Category panels
+  const categoryMap = {
+    'af_zone': showZonePanel, 'af_fish': showFishPanel, 'af_rod': showRodPanel,
+    'af_event': showEventPanel, 'af_weather': showWeatherPanel, 'af_shop': showShopPanel,
+    'af_currency': showCurrencyPanel, 'af_stats': showStatsPanel, 'af_history': showHistoryPanel,
+  };
+  if (categoryMap[cid]) return categoryMap[cid](interaction);
+
+  // Modals - show modal
+  if (cid.startsWith('af_') && cid.includes('_') && modals[cid.replace('af_', '').replace('modal_', '').split('_').slice(0, 1).join('')]) {
+    // Not the right approach - we need direct mapping
+  }
+
+  // Map of action → modal
+  const modalMap = {
+    'af_zone_add': 'zone_add',
+    'af_zone_addfish': 'zone_addfish',
+    'af_zone_removefish': 'zone_removefish',
+    'af_zone_delete': 'zone_delete',
+    'af_zone_restricted': 'zone_restricted',
+    'af_fish_add': 'fish_add',
+    'af_fish_delete': 'fish_delete',
+    'af_rod_add': 'rod_add',
+    'af_rod_delete': 'rod_delete',
+    'af_cur_add': 'cur_user_add',
+    'af_cur_del': 'cur_user_del',
+    'af_evt_temp': 'evt_temp',
+    'af_evt_spawn': 'evt_spawn',
+    'af_evt_setinterval': 'evt_setinterval',
+    'af_wx_mulai': 'wx_mulai',
+    'af_wx_custom': 'wx_custom',
+    'af_wx_setchannel': 'wx_setchannel',
+    'af_wx_stop': 'wx_stop',
+    'af_wx_template': 'wx_template',
+    'af_shop_add': 'shop_add',
+    'af_shop_del': 'shop_del',
+  };
+
+  if (modalMap[cid]) {
+    const modalFn = modals[modalMap[cid]];
+    if (modalFn) return interaction.showModal(modalFn());
+  }
+
+  return false;
+}
+
+async function showMainPanelAsUpdate(interaction) {
+  const { guildId } = interaction;
+  const zonaData = getZonaData();
+  const fishData = getFishData();
+  const rodData = getRodData();
+  const shopData = getShopData();
+  const activeEvents = getActiveEvents();
+  const spawnConfig = getSpawnConfig();
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🎣 Admin Fishing Panel')
+    .setDescription('Kelola semua aspek fishing system dari sini.\nKlik kategori di bawah untuk mulai.')
+    .addFields(
+      { name: '🗺️ Zona', value: `${Object.keys(zonaData.zonas).length} zona`, inline: true },
+      { name: '🐟 Ikan', value: `${fishData.fish?.length || 0} species`, inline: true },
+      { name: '🎣 Pancingan', value: `${rodData.rods?.length || 0} rod`, inline: true },
+      { name: '🛒 Shop', value: `${shopData.items?.length || 0} item`, inline: true },
+      { name: '🌦️ Event Aktif', value: `${activeEvents.length}/3 stack`, inline: true },
+      { name: '⏰ Auto Spawn', value: spawnConfig.spawnInterval ? `Tiap ${spawnConfig.spawnInterval} menit` : 'Off', inline: true },
+    )
+    .setFooter({ text: '🎣 Admin Panel • Pilih kategori di bawah' })
+    .setTimestamp();
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_zone').setLabel('🗺️ Zona').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('af_fish').setLabel('🐟 Ikan').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('af_rod').setLabel('🎣 Pancingan').setStyle(ButtonStyle.Primary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_event').setLabel('⏰ Event Zona').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_weather').setLabel('🌦️ Cuaca').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('af_shop').setLabel('🛒 Shop').setStyle(ButtonStyle.Success),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_currency').setLabel('💎 Currency').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('af_stats').setLabel('📊 Stats').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('af_history').setLabel('📜 History').setStyle(ButtonStyle.Secondary),
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('af_close').setLabel('✖ Tutup').setStyle(ButtonStyle.Danger),
+    ),
+  ];
+
+  return interaction.update({ embeds: [embed], components: rows });
+}
+
+// ══════════════
+// MODAL HANDLER
+// ══════════════
+
+export async function handleAdminFishingModal(interaction) {
+  if (!interaction.guildId) return false;
+  if (!interaction.customId?.startsWith('af_modal_')) return false;
+
+  const cid = interaction.customId;
+  const guildId = interaction.guildId;
+  const v = (name) => interaction.fields.getTextInputValue(name);
+
+  // Helper to log action
+  function logAction(action, detail) {
+    addHistory(guildId, { action, detail, by: interaction.user.id, at: Date.now() });
+  }
+
+  try {
+    // ── ZONA ──
+    if (cid === 'af_modal_zone_add') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const id = v('id').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+      const nama = v('nama').slice(0, 50);
+      const emoji = v('emoji').slice(0, 4);
+      const deskripsi = v('deskripsi').slice(0, 300);
+      const warna = /^#[0-9A-Fa-f]{6}$/.test(v('warna')) ? v('warna') : '#3498db';
+      const zonaData = getZonaData();
+      if (zonaData.zonas[id]) return interaction.editReply({ embeds: [{ color: 0xe74c3c, title: `❌ Zona \`${id}\` sudah ada.` }] });
+      zonaData.zonas[id] = { id, nama, emoji, deskripsi, color: warna, channelId: null, fish: [], createdAt: Date.now() };
+      saveZonaData(zonaData);
+      logAction('Buat Zona', `${id} (${nama})`);
+      return interaction.editReply({ embeds: [{ color: 0x2ecc71, title: `✅ Zona \`${id}\` dibuat. (Channel belum ada — gunakan /adminfishing autoCreateChannel atau buat manual)` }] });
     }
 
-    await interaction.deferReply({ ephemeral: true });
-
-    let channelId, channelMention;
-
-    if (existingChannel) {
-      channelId = existingChannel.id;
-      channelMention = existingChannel.toString();
-    } else {
-      try {
-        const options = {
-          name: `${emoji}｜${nama.toLowerCase().replace(/\s+/g, '-')}`,
-          type: ChannelType.GuildText,
-          topic: `🎣 Zona Mancing: ${nama} | ${deskripsi}`
-        };
-        if (categoryId) options.parent = categoryId;
-
-        const newChannel = await interaction.guild.channels.create(options);
-        channelId = newChannel.id;
-        channelMention = newChannel.toString();
-
-        await newChannel.send({
-          embeds: [new EmbedBuilder()
-            .setColor(warna)
-            .setTitle(`${emoji} Selamat Datang di ${nama}!`)
-            .setDescription(deskripsi)
-            .setFooter({ text: 'Gunakan /mancing untuk memancing di zona ini!' })
-          ]
-        });
-      } catch (e) {
-        return interaction.editReply({
-          embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Gagal Buat Channel').setDescription(`Error: ${e.message}\nPastikan bot punya permission **Manage Channels**!`)]
-        });
+    if (cid === 'af_modal_zone_addfish') {
+      const zonaId = v('zona_id');
+      const zonaData = getZonaData();
+      const zona = zonaData.zonas[zonaId];
+      if (!zona) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Zona tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      const { fish } = getFishData();
+      const fishIds = [v('ikan_1'), v('ikan_2'), v('ikan_3'), v('ikan_4')].filter(Boolean);
+      const added = []; const skipped = []; const notFound = [];
+      for (const fishId of fishIds) {
+        const f = fish.find(x => x.id === fishId);
+        if (!f) { notFound.push(fishId); continue; }
+        if (zona.fish.includes(fishId)) { skipped.push(f.emoji + ' ' + f.name); continue; }
+        zona.fish.push(fishId);
+        added.push(f.emoji + ' **' + f.name + '**');
       }
+      saveZonaData(zonaData);
+      logAction('Tambah Ikan Zona', `${added.length} ke ${zonaId}`);
+      const lines = [];
+      if (added.length) lines.push('✅ ' + added.join(', '));
+      if (skipped.length) lines.push('⚠️ Sudah ada: ' + skipped.join(', '));
+      if (notFound.length) lines.push('❌ Tidak ditemukan: ' + notFound.join(', '));
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: '🐟 Update Zona', description: lines.join('\n') }], flags: MessageFlags.Ephemeral });
     }
 
-    zonaData.zonas[id] = { id, nama, emoji, deskripsi, color: warna, channelId, fish: [], createdAt: Date.now() };
-    saveZonaData(zonaData);
-
-    return interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor(warna)
-        .setTitle('✅ Zona Berhasil Dibuat!')
-        .addFields(
-          { name: 'ID', value: `\`${id}\``, inline: true },
-          { name: 'Nama', value: `${emoji} ${nama}`, inline: true },
-          { name: 'Channel', value: channelMention, inline: true },
-          { name: 'Deskripsi', value: deskripsi },
-          { name: 'Ikan', value: 'Belum ada. Tambah dengan `/adminfishing addzonafish`' }
-        )
-        .setFooter({ text: `Total zona: ${Object.keys(zonaData.zonas).length}` })
-      ]
-    });
-  }
-
-  if (sub === 'delzona') {
-    const zonaData = getZonaData();
-    const id = interaction.options.getString('id');
-    const delChannel = interaction.options.getBoolean('del_channel') || false;
-    const zona = zonaData.zonas[id];
-
-    if (!zona) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Zona Tidak Ditemukan')],
-        ephemeral: true
-      });
+    if (cid === 'af_modal_zone_removefish') {
+      const zonaData = getZonaData();
+      const zona = zonaData.zonas[v('zona_id')];
+      if (!zona) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Zona tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      const before = zona.fish.length;
+      zona.fish = zona.fish.filter(f => f !== v('fish_id'));
+      if (zona.fish.length === before) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Ikan tidak ada di zona.' }], flags: MessageFlags.Ephemeral });
+      saveZonaData(zonaData);
+      logAction('Hapus Ikan Zona', `${v('fish_id')} dari ${v('zona_id')}`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `✅ Ikan dihapus dari zona.` }], flags: MessageFlags.Ephemeral });
     }
 
-    await interaction.deferReply({ ephemeral: true });
-
-    if (delChannel && zona.channelId) {
-      try {
-        const ch = await interaction.guild.channels.fetch(zona.channelId);
-        await ch.delete();
-      } catch {}
-    }
-
-    delete zonaData.zonas[id];
-    saveZonaData(zonaData);
-
-    return interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('🗑️ Zona Dihapus!')
-        .setDescription(`Zona **${zona.emoji} ${zona.nama}** (\`${id}\`) berhasil dihapus!${delChannel ? '\nChannel Discord juga dihapus.' : ''}`)
-      ]
-    });
-  }
-
-  if (sub === 'addzonafish') {
-    const zonaData = getZonaData();
-    const zonaId = interaction.options.getString('zona_id');
-    const zona = zonaData.zonas[zonaId];
-    if (!zona) return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Zona Tidak Ditemukan')], ephemeral: true });
-
-    const { fish: fishList } = getFishData();
-    const fishIds = [];
-    for (let i = 1; i <= 10; i++) {
-      const id = interaction.options.getString('ikan_' + i);
-      if (id) fishIds.push(id);
-    }
-
-    const added = [], skipped = [], notFound = [];
-    for (const fishId of fishIds) {
-      const fish = fishList.find(f => f.id === fishId);
-      if (!fish) { notFound.push(fishId); continue; }
-      if (zona.fish.includes(fishId)) { skipped.push(fish.emoji + ' ' + fish.name); continue; }
-      zona.fish.push(fishId);
-      added.push(fish.emoji + ' **' + fish.name + '** (' + fish.rarity + ')');
-    }
-
-    saveZonaData(zonaData);
-
-    const resultLines = [];
-    if (added.length > 0) resultLines.push('✅ **Ditambahkan (' + added.length + '):**\n' + added.join('\n'));
-    if (skipped.length > 0) resultLines.push('⚠️ **Sudah ada (' + skipped.length + '):**\n' + skipped.join(', '));
-    if (notFound.length > 0) resultLines.push('❌ **Tidak ditemukan:**\n' + notFound.join(', '));
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(added.length > 0 ? '#2ecc71' : '#e74c3c')
-        .setTitle('🐟 Update Ikan Zona')
-        .setDescription(resultLines.join('\n\n'))
-        .addFields({ name: 'Total Ikan di Zona', value: zona.fish.length + ' ikan', inline: true })
-      ],
-      ephemeral: true
-    });
-  }
-
-  if (sub === 'removezonafish') {
-    const zonaData = getZonaData();
-    const zonaId = interaction.options.getString('zona_id');
-    const fishId = interaction.options.getString('fish_id');
-    const zona = zonaData.zonas[zonaId];
-    const { fish: fishList } = getFishData();
-    const fish = fishList.find(f => f.id === fishId);
-
-    if (!zona) return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Zona Tidak Ditemukan')], ephemeral: true });
-    if (!zona.fish.includes(fishId)) return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Ikan Tidak Ada di Zona')], ephemeral: true });
-
-    zona.fish = zona.fish.filter(f => f !== fishId);
-    saveZonaData(zonaData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('🗑️ Ikan Dihapus dari Zona!')
-        .setDescription(`${fish?.emoji || '🐟'} **${fish?.name || fishId}** dihapus dari zona **${zona.emoji} ${zona.nama}**!`)
-      ],
-      ephemeral: true
-    });
-  }
-
-  if (sub === 'listzona') {
-    const zonaData = getZonaData();
-    const zonas = Object.values(zonaData.zonas);
-    if (zonas.length === 0) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#95a5a6').setTitle('🗺️ Zona Mancing').setDescription('Belum ada zona! Buat dengan `/adminfishing addzona`')],
-        ephemeral: true
-      });
-    }
-    const lines = zonas.map(z => `${z.emoji} **${z.nama}** (\`${z.id}\`) — <#${z.channelId}> | ${z.fish.length} ikan`);
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#3498db')
-        .setTitle(`🗺️ Semua Zona Mancing (${zonas.length})`)
-        .setDescription(lines.join('\n'))
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ════════════════════════════════
-  // FISH
-  // ════════════════════════════════
-
-  if (sub === 'addfish') {
-    const fishData = getFishData();
-    const fishId = interaction.options.getString('id').toLowerCase().replace(/\s+/g, '_');
-    const name = interaction.options.getString('nama');
-    const emoji = interaction.options.getString('emoji');
-    const rarity = interaction.options.getString('rarity');
-    const chanceNum = interaction.options.getInteger('chance');
-    const bandingNum = interaction.options.getInteger('banding');
-    const jenis = interaction.options.getString('jenis');
-    const price = interaction.options.getInteger('harga');
-    const description = interaction.options.getString('deskripsi');
-
-    // Hitung multiplier berdasarkan jenis satuan
-    const multiplier = jenis === 'm' ? 1_000_000 : jenis === 'k' ? 1_000 : 1;
-    const totalPenyebut = bandingNum * multiplier;
-    // Simpan sebagai persentase: 1/100 = 1%, 1/1K = 0.1%, 1/1M = 0.0001%
-    const chancePercent = (chanceNum / totalPenyebut) * 100;
-
-    // Format tampilan untuk embed
-    const bandingDisplay = jenis === 'm' ? `${bandingNum}M` : jenis === 'k' ? `${bandingNum}K` : `${bandingNum.toLocaleString('id-ID')}`;
-    const chanceDisplay = `${chanceNum}/${bandingDisplay}`;
-
-    if (fishData.fish.find(f => f.id === fishId)) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ ID Sudah Ada').setDescription(`Ikan dengan ID **\`${fishId}\`** sudah ada di database!\nGunakan ID yang berbeda.`)],
-        ephemeral: true
-      });
-    }
-
-    fishData.fish.push({ id: fishId, name, emoji, rarity, chance: chancePercent, price, description });
-    saveFishData(fishData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('✅ Ikan Berhasil Ditambahkan!')
-        .setDescription('Ikan baru telah ditambahkan ke database!')
-        .addFields(
-          { name: 'ID', value: `\`${fishId}\``, inline: true },
-          { name: 'Nama', value: `${emoji} ${name}`, inline: true },
-          { name: 'Rarity', value: `${getRarityEmoji(rarity)} ${rarity}`, inline: true },
-          { name: 'Chance', value: `🎲 ${chanceDisplay}`, inline: true },
-          { name: 'Harga', value: `🪙 ${formatNumber(price)} Coins`, inline: true },
-          { name: '\u200B', value: '\u200B', inline: true },
-          { name: 'Deskripsi', value: description }
-        )
-        .setFooter({ text: `Total ikan di database: ${fishData.fish.length}` })
-        .setTimestamp()
-      ]
-    });
-  }
-
-
-  if (sub === 'delfish') {
-    const fishData = getFishData();
-    const id = interaction.options.getString('id');
-    const fish = fishData.fish.find(f => f.id === id);
-
-    if (!fish) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Tidak Ditemukan').setDescription(`Ikan dengan ID **\`${id}\`** tidak ada!`)],
-        ephemeral: true
-      });
-    }
-
-    fishData.fish = fishData.fish.filter(f => f.id !== id);
-    saveFishData(fishData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('🗑️ Ikan Dihapus!')
-        .setDescription(`${fish.emoji} **${fish.name}** (\`${fish.id}\`) berhasil dihapus dari database!`)
-        .setFooter({ text: `Sisa ikan: ${fishData.fish.length}` })
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ════════════════════════════════
-  // ROD
-  // ════════════════════════════════
-
-  if (sub === 'addrod') {
-    const rodData = getRodData();
-    const id = interaction.options.getString('id').toLowerCase().replace(/\s+/g, '_');
-    const nama = interaction.options.getString('nama');
-    const emoji = interaction.options.getString('emoji');
-    const deskripsi = interaction.options.getString('deskripsi');
-    const harga = interaction.options.getInteger('harga');
-    const luck = interaction.options.getInteger('luck');
-    const cooldown = interaction.options.getInteger('cooldown');
-    const mutasiMult = interaction.options.getNumber('mutasi_mult') ?? 1.0;
-
-    if (rodData.rods.find(r => r.id === id)) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ ID Sudah Ada').setDescription(`Pancingan dengan ID **\`${id}\`** sudah ada!`)],
-        ephemeral: true
-      });
-    }
-
-    rodData.rods.push({
-      id, name: nama, emoji, description: deskripsi,
-      price: harga, luckBonus: luck,
-      cooldownReduction: cooldown,
-      mutationMultiplier: mutasiMult,
-      isDefault: false
-    });
-    saveRodData(rodData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('✅ Pancingan Berhasil Ditambahkan!')
-        .addFields(
-          { name: 'ID', value: `\`${id}\``, inline: true },
-          { name: 'Nama', value: `${emoji} ${nama}`, inline: true },
-          { name: 'Harga', value: `🪙 ${formatNumber(harga)}`, inline: true },
-          { name: 'Luck Bonus', value: `+${luck}%`, inline: true },
-          { name: 'Cooldown', value: `-${cooldown}s`, inline: true },
-          { name: 'Mutasi Mult', value: `×${mutasiMult}`, inline: true },
-          { name: 'Deskripsi', value: deskripsi }
-        )
-        .setFooter({ text: `Total pancingan: ${rodData.rods.length}` })
-        .setTimestamp()
-      ],
-      ephemeral: true
-    });
-  }
-
-  if (sub === 'delrod') {
-    const rodData = getRodData();
-    const id = interaction.options.getString('id');
-    const rod = rodData.rods.find(r => r.id === id);
-
-    if (!rod) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Tidak Ditemukan').setDescription(`Pancingan dengan ID **\`${id}\`** tidak ada!`)],
-        ephemeral: true
-      });
-    }
-
-    if (id === 'pancing_bambu') {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Tidak Bisa Dihapus').setDescription('Pancing Bambu adalah pancingan default dan tidak bisa dihapus!')],
-        ephemeral: true
-      });
-    }
-
-    rodData.rods = rodData.rods.filter(r => r.id !== id);
-    saveRodData(rodData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('🗑️ Pancingan Dihapus!')
-        .setDescription(`${rod.emoji} **${rod.name}** (\`${rod.id}\`) berhasil dihapus dari database!`)
-        .setFooter({ text: `Sisa pancingan: ${rodData.rods.length}` })
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ════════════════════════════════
-  // GEMS
-  // ════════════════════════════════
-
-  if (sub === 'addgems') {
-    const target = interaction.options.getUser('user');
-    const jumlah = interaction.options.getInteger('jumlah');
-    const player = getPlayer(target.id);
-
-    player.gems = (player.gems || 0) + jumlah;
-    savePlayer(target.id, player);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#00d4ff')
-        .setTitle('💎 Gems Ditambahkan!')
-        .setDescription(`Berhasil menambahkan **${jumlah.toLocaleString('id-ID')} 💎 Gems** ke ${target}!`)
-        .addFields(
-          { name: 'User', value: `${target.tag}`, inline: true },
-          { name: 'Ditambahkan', value: `+${jumlah.toLocaleString('id-ID')} 💎`, inline: true },
-          { name: 'Total Gems', value: `${formatNumber(player.gems)} 💎`, inline: true }
-        )
-        .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-        .setTimestamp()
-      ],
-      ephemeral: true
-    });
-  }
-
-  if (sub === 'delgems') {
-    const target = interaction.options.getUser('user');
-    const jumlah = interaction.options.getInteger('jumlah');
-    const player = getPlayer(target.id);
-
-    if ((player.gems || 0) < jumlah) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder()
-          .setColor('#e74c3c')
-          .setTitle('❌ Gems Tidak Cukup')
-          .setDescription(`${target} hanya punya **${(player.gems || 0).toLocaleString('id-ID')} 💎 Gems**, tidak bisa dikurangi **${jumlah.toLocaleString('id-ID')} 💎**!`)
-        ],
-        ephemeral: true
-      });
-    }
-
-    player.gems -= jumlah;
-    savePlayer(target.id, player);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#e67e22')
-        .setTitle('💎 Gems Dikurangi!')
-        .setDescription(`Berhasil mengurangi **${jumlah.toLocaleString('id-ID')} 💎 Gems** dari ${target}!`)
-        .addFields(
-          { name: 'User', value: `${target.tag}`, inline: true },
-          { name: 'Dikurangi', value: `-${jumlah.toLocaleString('id-ID')} 💎`, inline: true },
-          { name: 'Sisa Gems', value: `${formatNumber(player.gems)} 💎`, inline: true }
-        )
-        .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-        .setTimestamp()
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ════════════════════════════════
-  // TEMP ZONA
-  // ════════════════════════════════
-
-  if (sub === 'addtempzona') {
-    const zonaData = getZonaData();
-    const id = interaction.options.getString('id').toLowerCase().replace(/\s+/g, '_');
-    const nama = interaction.options.getString('nama');
-    const emoji = interaction.options.getString('emoji');
-    const deskripsi = interaction.options.getString('deskripsi');
-    const durasi = interaction.options.getInteger('durasi');
-    const warna = interaction.options.getString('warna') || '#f39c12';
-    const existingChannel = interaction.options.getChannel('channel');
-    const categoryId = interaction.options.getString('category');
-
-    if (zonaData.zonas[id]) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ ID Sudah Ada')],
-        ephemeral: true
-      });
-    }
-
-    await interaction.deferReply({ ephemeral: true });
-
-    let channelId, channelMention;
-    if (existingChannel) {
-      channelId = existingChannel.id;
-      channelMention = existingChannel.toString();
-    } else {
-      try {
-        const options = {
-          name: `${emoji}｜${nama.toLowerCase().replace(/\s+/g, '-')}`,
-          type: ChannelType.GuildText,
-          topic: `⏰ [EVENT ZONA] ${nama} | ${deskripsi}`
-        };
-        if (categoryId) options.parent = categoryId;
-        const newChannel = await interaction.guild.channels.create(options);
-        channelId = newChannel.id;
-        channelMention = newChannel.toString();
-        await newChannel.send({
-          embeds: [new EmbedBuilder()
-            .setColor(warna)
-            .setTitle(`${emoji} ${nama} — Event Zona!`)
-            .setDescription(`${deskripsi}\n\n⏰ Zona ini akan aktif selama **${durasi} menit**!`)
-            .setFooter({ text: 'Gunakan /mancing untuk memancing di zona ini!' })
-          ]
-        });
-      } catch (e) {
-        return interaction.editReply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Gagal Buat Channel').setDescription(e.message)] });
+    if (cid === 'af_modal_zone_delete') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const zonaData = getZonaData();
+      const id = v('id');
+      const zona = zonaData.zonas[id];
+      if (!zona) return interaction.editReply({ embeds: [{ color: 0xe74c3c, title: '❌ Zona tidak ditemukan.' }] });
+      if (/^yes$/i.test(v('del_channel') || '') && zona.channelId) {
+        const ch = await interaction.guild.channels.fetch(zona.channelId).catch(() => null);
+        if (ch) await ch.delete().catch(() => {});
       }
+      delete zonaData.zonas[id];
+      saveZonaData(zonaData);
+      logAction('Hapus Zona', id);
+      return interaction.editReply({ embeds: [{ color: 0x2ecc71, title: `🗑️ Zona \`${id}\` dihapus.` }] });
     }
 
-    const endsAt = Date.now() + durasi * 60 * 1000;
-    zonaData.zonas[id] = {
-      id, nama, emoji, deskripsi, color: warna,
-      channelId, fish: [], tempFish: [],
-      isTemp: true, endsAt,
-      createdAt: Date.now()
-    };
-    saveZonaData(zonaData);
-
-    // Auto delete setelah durasi
-    setTimeout(async () => {
-      try {
-        const freshZona = getZonaData();
-        if (freshZona.zonas[id]) {
-          const ch = await interaction.guild.channels.fetch(freshZona.zonas[id].channelId).catch(() => null);
-          if (ch) await ch.delete().catch(() => {});
-          delete freshZona.zonas[id];
-          saveZonaData(freshZona);
-          console.log(`🗑️ Temp zona ${id} dihapus otomatis.`);
-        }
-      } catch (e) { console.error('Gagal hapus temp zona:', e); }
-    }, durasi * 60 * 1000);
-
-    return interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor(warna)
-        .setTitle('✅ Event Zona Dibuat!')
-        .addFields(
-          { name: 'ID', value: `\`${id}\``, inline: true },
-          { name: 'Nama', value: `${emoji} ${nama}`, inline: true },
-          { name: 'Channel', value: channelMention, inline: true },
-          { name: 'Durasi', value: `${durasi} menit`, inline: true },
-          { name: 'Berakhir', value: `<t:${Math.floor(endsAt / 1000)}:R>`, inline: true }
-        )
-        .setFooter({ text: 'Zona akan auto-delete setelah durasi habis' })
-      ]
-    });
-  }
-
-  // ── SPAWN FISH ──
-  if (sub === 'spawnfish') {
-    const zonaId = interaction.options.getString('zona_id');
-    const fishId = interaction.options.getString('fish_id');
-    const durasi = interaction.options.getInteger('durasi');
-
-    const result = await spawnFish(interaction.client, zonaId, fishId, durasi);
-    if (!result.success) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Gagal Spawn').setDescription(result.message)], ephemeral: true });
+    if (cid === 'af_modal_zone_restricted') {
+      const zonaData = getZonaData();
+      const zona = zonaData.zonas[v('zona_id')];
+      if (!zona) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Zona tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      const restricted = /^true$/i.test(v('restricted'));
+      zona.restricted = restricted;
+      if (restricted) {
+        const shopData = getShopData();
+        const ticketId = `ticket_${zona.id}`;
+        const ticketItem = {
+          id: ticketId, name: `Tiket ${zona.nama}`, emoji: '🎟️',
+          description: `Tiket masuk ke zona ${zona.emoji} ${zona.nama}. Sekali pakai.`,
+          type: 'ticket', zonaId: zona.id,
+          priceCoins: parseInt(v('harga_coins') || '0') || 0,
+          priceGems: parseInt(v('harga_gems') || '0') || 0,
+          stock: -1,
+        };
+        const idx = shopData.items.findIndex(i => i.id === ticketId);
+        if (idx >= 0) shopData.items[idx] = ticketItem;
+        else shopData.items.unshift(ticketItem);
+        saveShopData(shopData);
+      } else {
+        const shopData = getShopData();
+        shopData.items = shopData.items.filter(i => i.id !== `ticket_${zona.id}`);
+        saveShopData(shopData);
+      }
+      saveZonaData(zonaData);
+      logAction(restricted ? 'Set Restricted' : 'Unrestrict Zona', zona.id);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: restricted ? `🔒 Zona \`${zona.id}\` restricted.` : `🔓 Zona \`${zona.id}\` bebas.` }], flags: MessageFlags.Ephemeral });
     }
 
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('✅ Ikan Di-spawn!')
-        .setDescription(`${result.fish.emoji} **${result.fish.name}** berhasil di-spawn di **${result.zona.emoji} ${result.zona.nama}**!`)
-        .addFields(
-          { name: '⏱️ Durasi', value: `${durasi} menit`, inline: true },
-          { name: '🎲 Chance', value: formatChance(result.fish.chance), inline: true },
-          { name: '⏰ Berakhir', value: `<t:${Math.floor(result.endsAt / 1000)}:R>`, inline: true }
-        )
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ── SET RESTRICTED ──
-  if (sub === 'setrestricted') {
-    const zonaId = interaction.options.getString('zona_id');
-    const restricted = interaction.options.getBoolean('restricted');
-    const hargaCoins = interaction.options.getInteger('harga_coins') || 0;
-    const hargaGems = interaction.options.getInteger('harga_gems') || 0;
-
-    const zonaData = getZonaData();
-    const zona = zonaData.zonas[zonaId];
-    if (!zona) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Zona Tidak Ditemukan')], ephemeral: true });
+    // ── FISH ──
+    if (cid === 'af_modal_fish_add') {
+      const fishData = getFishData();
+      const id = v('id').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+      if (fishData.fish.find(f => f.id === id)) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ ID sudah ada.' }], flags: MessageFlags.Ephemeral });
+      const chance = parseInt(v('chance')) || 1;
+      const banding = parseInt(v('banding')) || 1;
+      const jenis = v('jenis') || 'biasa';
+      const mult = jenis === 'm' ? 1_000_000 : jenis === 'k' ? 1_000 : 1;
+      const chancePercent = (chance / (banding * mult)) * 100;
+      fishData.fish.push({
+        id, name: v('nama'), emoji: v('emoji'), rarity: v('rarity'),
+        chance: chancePercent, price: parseInt(v('harga')) || 100, description: v('deskripsi'),
+      });
+      saveFishData(fishData);
+      logAction('Tambah Ikan', `${id} (${v('nama')})`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `✅ Ikan \`${id}\` ditambahkan!` }], flags: MessageFlags.Ephemeral });
     }
 
-    zona.restricted = restricted;
+    if (cid === 'af_modal_fish_delete') {
+      const fishData = getFishData();
+      const id = v('id');
+      const idx = fishData.fish.findIndex(f => f.id === id);
+      if (idx === -1) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Ikan tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      const removed = fishData.fish[idx];
+      fishData.fish.splice(idx, 1);
+      saveFishData(fishData);
+      logAction('Hapus Ikan', `${id} (${removed.name})`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🗑️ Ikan \`${id}\` dihapus.` }], flags: MessageFlags.Ephemeral });
+    }
 
-    if (restricted) {
-      // Auto tambah/update tiket ke shop
-      const shopData = getShopData();
-      const ticketId = `ticket_${zonaId}`;
-      const existingIdx = shopData.items.findIndex(i => i.id === ticketId);
-      const ticketItem = {
-        id: ticketId,
-        name: `Tiket ${zona.nama}`,
-        emoji: '🎟️',
-        description: `Tiket masuk ke zona ${zona.emoji} ${zona.nama}. Sekali pakai.`,
-        type: 'ticket',
-        zonaId: zonaId,
-        priceCoins: hargaCoins,
-        priceGems: hargaGems,
-        stock: -1
+    // ── ROD ──
+    if (cid === 'af_modal_rod_add') {
+      const rodData = getRodData();
+      const id = v('id').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+      if (rodData.rods.find(r => r.id === id)) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ ID sudah ada.' }], flags: MessageFlags.Ephemeral });
+      rodData.rods.push({
+        id, name: v('nama'), emoji: v('emoji'), description: v('deskripsi'),
+        price: parseInt(v('harga')) || 0, luckBonus: parseInt(v('luck')) || 0,
+        cooldownReduction: parseInt(v('cooldown')) || 0,
+        mutationMultiplier: parseFloat(v('mutasi_mult')) || 1.0,
+        isDefault: false,
+      });
+      saveRodData(rodData);
+      logAction('Tambah Rod', id);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🎣 Rod \`${id}\` ditambahkan!` }], flags: MessageFlags.Ephemeral });
+    }
+
+    if (cid === 'af_modal_rod_delete') {
+      const rodData = getRodData();
+      const id = v('id');
+      if (id === 'pancing_bambu') return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Default rod tidak bisa dihapus.' }], flags: MessageFlags.Ephemeral });
+      const idx = rodData.rods.findIndex(r => r.id === id);
+      if (idx === -1) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Rod tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      rodData.rods.splice(idx, 1);
+      saveRodData(rodData);
+      logAction('Hapus Rod', id);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🗑️ Rod \`${id}\` dihapus.` }], flags: MessageFlags.Ephemeral });
+    }
+
+    // ── CURRENCY ──
+    if (cid === 'af_modal_cur_add' || cid === 'af_modal_cur_del') {
+      const isDel = cid === 'af_modal_cur_del';
+      const userInput = v('user_id').replace(/[<@!>]/g, '');
+      const userId = userInput;
+      const jumlah = parseInt(v('jumlah')) || 0;
+      if (!jumlah) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Jumlah invalid.' }], flags: MessageFlags.Ephemeral });
+      const player = getPlayer(userId);
+      if (isDel && (player.gems || 0) < jumlah) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `❌ User hanya punya ${player.gems || 0} gems.` }], flags: MessageFlags.Ephemeral });
+      player.gems = isDel ? (player.gems || 0) - jumlah : (player.gems || 0) + jumlah;
+      savePlayer(userId, player);
+      logAction(isDel ? 'Kurangi Gems' : 'Tambah Gems', `${userId} ${isDel ? '-' : '+'}${jumlah}`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `${isDel ? '➖' : '➕'} ${jumlah} 💎 ${isDel ? 'dikurangi dari' : 'ditambahkan ke'} <@${userId}>.` }], flags: MessageFlags.Ephemeral });
+    }
+
+    // ── EVENT ──
+    if (cid === 'af_modal_evt_temp') {
+      const zonaData = getZonaData();
+      const id = v('id').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+      if (zonaData.zonas[id]) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ ID sudah ada.' }], flags: MessageFlags.Ephemeral });
+      const durasi = parseInt(v('durasi')) || 60;
+      const endsAt = Date.now() + durasi * 60_000;
+      const warna = /^#[0-9A-Fa-f]{6}$/.test(v('warna')) ? v('warna') : '#f39c12';
+      zonaData.zonas[id] = {
+        id, nama: v('nama'), emoji: v('emoji'), deskripsi: v('deskripsi'),
+        color: warna, channelId: null, fish: [], tempFish: [],
+        isTemp: true, endsAt, createdAt: Date.now(),
       };
-      if (existingIdx >= 0) shopData.items[existingIdx] = ticketItem;
-      else shopData.items.unshift(ticketItem);
-      saveShopData(shopData);
-    } else {
-      // Hapus tiket dari shop
-      const shopData = getShopData();
-      shopData.items = shopData.items.filter(i => i.id !== `ticket_${zonaId}`);
-      saveShopData(shopData);
+      saveZonaData(zonaData);
+      logAction('Buat Temp Zona', `${id} (${durasi} menit)`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `⏰ Temp zona \`${id}\` dibuat (${durasi} menit, berakhir <t:${Math.floor(endsAt / 1000)}:R>).` }], flags: MessageFlags.Ephemeral });
     }
 
-    saveZonaData(zonaData);
+    if (cid === 'af_modal_evt_spawn') {
+      const result = await spawnFish(interaction.client, v('zona_id'), v('fish_id'), parseInt(v('durasi')) || 30);
+      if (!result.success) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Gagal', description: result.message }], flags: MessageFlags.Ephemeral });
+      logAction('Spawn Fish', `${v('fish_id')} di ${v('zona_id')}`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🐟 ${result.fish.emoji} ${result.fish.name} di-spawn!` }], flags: MessageFlags.Ephemeral });
+    }
 
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(restricted ? '#e67e22' : '#2ecc71')
-        .setTitle(restricted ? '🔒 Zona Restricted!' : '🔓 Zona Bebas!')
-        .setDescription(restricted
-          ? `Zona **${zona.emoji} ${zona.nama}** sekarang restricted.\nTiket otomatis ditambahkan ke \`/fishshop\`.\nHarga: ${hargaCoins > 0 ? `🪙 ${hargaCoins.toLocaleString('id-ID')}` : ''} ${hargaGems > 0 ? `💎 ${hargaGems}` : ''}`
-          : `Zona **${zona.emoji} ${zona.nama}** sekarang bebas diakses.\nTiket dihapus dari \`/fishshop\`.`)
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ── SET SPAWN INTERVAL ──
-  if (sub === 'setspawninterval') {
-    const menit = interaction.options.getInteger('menit');
-    const config = getSpawnConfig();
-
-    if (menit === 0) {
-      stopAutoInterval();
-      config.spawnInterval = null;
+    if (cid === 'af_modal_evt_setinterval') {
+      const menit = parseInt(v('menit')) || 0;
+      const config = getSpawnConfig();
+      if (menit === 0) {
+        stopAutoInterval();
+        config.spawnInterval = null;
+        saveSpawnConfig(config);
+        return interaction.reply({ embeds: [{ color: 0x95a5a6, title: '⏹️ Auto spawn off.' }], flags: MessageFlags.Ephemeral });
+      }
+      config.spawnInterval = menit;
       saveSpawnConfig(config);
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#95a5a6').setTitle('⏹️ Auto Spawn Dimatikan').setDescription('Spawn ikan otomatis telah dinonaktifkan.')],
-        ephemeral: true
-      });
+      startAutoInterval(menit, interaction.client);
+      logAction('Set Spawn Interval', `${menit} menit`);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `✅ Auto spawn: tiap ${menit} menit.` }], flags: MessageFlags.Ephemeral });
     }
 
-    config.spawnInterval = menit;
-    saveSpawnConfig(config);
-    startAutoInterval(menit, interaction.client);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('✅ Auto Spawn Diset!')
-        .setDescription(`Ikan eksklusif akan spawn otomatis setiap **${menit} menit** di zona random!`)
-      ],
-      ephemeral: true
-    });
-  }
-
-  // ════════════════════════════════
-  // SHOP ITEMS
-  // ════════════════════════════════
-
-  if (sub === 'addshopitem') {
-    const shopData = getShopData();
-    const id = interaction.options.getString('id').toLowerCase().replace(/\s+/g, '_');
-    const nama = interaction.options.getString('nama');
-    const emoji = interaction.options.getString('emoji');
-    const deskripsi = interaction.options.getString('deskripsi');
-    const tipe = interaction.options.getString('tipe');
-    const hargaCoins = interaction.options.getInteger('harga_coins');
-    const hargaGems = interaction.options.getInteger('harga_gems');
-    const zonaId = interaction.options.getString('zona_id') || null;
-
-    if (shopData.items.find(i => i.id === id)) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ ID Sudah Ada')], ephemeral: true });
+    // ── WEATHER ──
+    if (cid === 'af_modal_wx_mulai') {
+      const eventData = getEventData();
+      const events = getActiveEvents();
+      if (events.length >= 3) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh.' }], flags: MessageFlags.Ephemeral });
+      const presetId = v('preset');
+      const durasi = parseInt(v('durasi')) || 60;
+      const preset = eventData.presets.find(p => p.id === presetId);
+      if (!preset) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `❌ Preset ${presetId} tidak valid.` }], flags: MessageFlags.Ephemeral });
+      const newEvent = { ...preset, id: `${presetId}_${Date.now()}`, startedBy: interaction.user.id, startedAt: Date.now(), endsAt: Date.now() + durasi * 60_000 };
+      addActiveEvent(newEvent);
+      logAction('Mulai Cuaca Preset', `${presetId} (${durasi}m)`);
+      // Announce
+      const ch = eventData.announcementChannelId ? await interaction.guild.channels.fetch(eventData.announcementChannelId).catch(() => null) : null;
+      const embed = buildWeatherEventEmbed(newEvent, durasi * 60_000, events.length + 1);
+      if (ch) await ch.send({ embeds: [embed] }).catch(() => {});
+      // Auto-end
+      setTimeout(() => {
+        removeActiveEvent(newEvent.id);
+        if (ch) ch.send({ embeds: [{ color: 0x95a5a6, title: `${preset.emoji} Event Berakhir`, description: `**${preset.name}** telah berakhir.` }] }).catch(() => {});
+      }, durasi * 60_000);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `▶️ Event \`${preset.name}\` dimulai!` }], flags: MessageFlags.Ephemeral });
     }
 
-    if (tipe === 'ticket' && !zonaId) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Zona ID Wajib').setDescription('Tiket zona harus punya zona_id!')], ephemeral: true });
+    if (cid === 'af_modal_wx_custom') {
+      const events = getActiveEvents();
+      if (events.length >= 3) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh.' }], flags: MessageFlags.Ephemeral });
+      const durasi = parseInt(v('durasi')) || 60;
+      const luckMode = v('luck_mode') === 'multiply' ? 'multiply' : 'add';
+      const luckMult = parseFloat(v('luck_multiplier')) || 1;
+      const rarityMultipliers = {};
+      for (const r of RARITY_ORDER) {
+        const val = parseFloat(v(`${r.toLowerCase()}_mult`));
+        rarityMultipliers[r] = !isNaN(val) ? val : 1.0;
+      }
+      const newEvent = {
+        id: `custom_${Date.now()}`,
+        name: v('nama'), emoji: v('emoji'), description: v('deskripsi'),
+        color: '#e74c3c',
+        luckBonus: parseInt(v('luck')) || 0,
+        luckMultiplyMode: luckMode === 'multiply',
+        luckMultiplier: luckMult,
+        rarityMultipliers,
+        mutationBoost: 1,
+        startedBy: interaction.user.id,
+        startedAt: Date.now(),
+        endsAt: Date.now() + durasi * 60_000,
+      };
+      addActiveEvent(newEvent);
+      logAction('Custom Event', v('nama'));
+      const eventData = getEventData();
+      const ch = eventData.announcementChannelId ? await interaction.guild.channels.fetch(eventData.announcementChannelId).catch(() => null) : null;
+      const embed = buildWeatherEventEmbed(newEvent, durasi * 60_000, events.length + 1);
+      if (ch) await ch.send({ embeds: [embed] }).catch(() => {});
+      setTimeout(() => {
+        removeActiveEvent(newEvent.id);
+        if (ch) ch.send({ embeds: [{ color: 0x95a5a6, title: `${v('emoji')} Event Berakhir`, description: `**${v('nama')}** telah berakhir.` }] }).catch(() => {});
+      }, durasi * 60_000);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `▶️ Custom event \`${v('nama')}\` dimulai!` }], flags: MessageFlags.Ephemeral });
     }
 
-    const newItem = { id, name: nama, emoji, description: deskripsi, type: tipe, priceCoins: hargaCoins, priceGems: hargaGems, stock: -1 };
-    if (zonaId) newItem.zonaId = zonaId;
-    shopData.items.push(newItem);
-    saveShopData(shopData);
-
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor('#2ecc71')
-        .setTitle('✅ Item Ditambahkan ke Shop!')
-        .addFields(
-          { name: 'ID', value: `\`${id}\``, inline: true },
-          { name: 'Nama', value: `${emoji} ${nama}`, inline: true },
-          { name: 'Tipe', value: tipe, inline: true },
-          { name: 'Harga', value: `${hargaCoins > 0 ? `🪙 ${hargaCoins.toLocaleString('id-ID')}` : ''} ${hargaGems > 0 ? `💎 ${hargaGems}` : ''}`.trim() || 'Gratis', inline: true }
-        )
-      ],
-      ephemeral: true
-    });
-  }
-
-  if (sub === 'delshopitem') {
-    const shopData = getShopData();
-    const id = interaction.options.getString('id');
-    const item = shopData.items.find(i => i.id === id);
-
-    if (!item) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor('#e74c3c').setTitle('❌ Item Tidak Ditemukan')], ephemeral: true });
+    if (cid === 'af_modal_wx_setchannel') {
+      const eventData = getEventData();
+      const channelIdRaw = v('channel_id')?.trim();
+      if (!channelIdRaw) {
+        eventData.announcementChannelId = null;
+        saveEventData(eventData);
+        logAction('Reset Wx Channel', '');
+        return interaction.reply({ embeds: [{ color: 0x95a5a6, title: '🔕 Channel di-reset.' }], flags: MessageFlags.Ephemeral });
+      }
+      const channelId = channelIdRaw.replace(/[<#!>]/g, '');
+      eventData.announcementChannelId = channelId;
+      saveEventData(eventData);
+      logAction('Set Wx Channel', channelId);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `📢 Channel diset: <#${channelId}>` }], flags: MessageFlags.Ephemeral });
     }
 
-    shopData.items = shopData.items.filter(i => i.id !== id);
-    saveShopData(shopData);
+    if (cid === 'af_modal_wx_stop') {
+      const eventId = v('event_id')?.trim();
+      if (!eventId) {
+        clearActiveEvents();
+        logAction('Stop Semua Event', '');
+        return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '⏹️ Semua event dihentikan.' }], flags: MessageFlags.Ephemeral });
+      }
+      removeActiveEvent(eventId);
+      logAction('Stop Event', eventId);
+      return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `⏹️ Event \`${eventId}\` dihentikan.` }], flags: MessageFlags.Ephemeral });
+    }
 
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor('#2ecc71').setTitle('🗑️ Item Dihapus!').setDescription(`${item.emoji} **${item.name}** dihapus dari shop.`)],
-      ephemeral: true
-    });
+    if (cid === 'af_modal_wx_template') {
+      const config = getGuildConfig(guildId);
+      const tplId = v('template_id');
+      const tpl = config.eventTemplates[tplId];
+      if (!tpl) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: `❌ Template ${tplId} tidak ada.` }], flags: MessageFlags.Ephemeral });
+      const events = getActiveEvents();
+      if (events.length >= 3) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Stack penuh.' }], flags: MessageFlags.Ephemeral });
+      const durasi = parseInt(v('durasi')) || 60;
+      const newEvent = {
+        id: `${tplId}_${Date.now()}`,
+        name: tpl.name, emoji: tpl.emoji, description: tpl.description, color: tpl.color,
+        luckBonus: 50, luckMultiplyMode: false, luckMultiplier: 1,
+        rarityMultipliers: { Common: 1, Uncommon: 1, Rare: 1, Epic: 1, Legendary: 1, Mythic: 1, Secret: 1 },
+        mutationBoost: 1,
+        startedBy: interaction.user.id, startedAt: Date.now(),
+        endsAt: Date.now() + durasi * 60_000,
+      };
+      addActiveEvent(newEvent);
+      logAction('Mulai Template', tplId);
+      const eventData = getEventData();
+      const ch = eventData.announcementChannelId ? await interaction.guild.channels.fetch(eventData.announcementChannelId).catch(() => null) : null;
+      const embed = buildWeatherEventEmbed(newEvent, durasi * 60_000, events.length + 1);
+      if (ch) await ch.send({ embeds: [embed] }).catch(() => {});
+      setTimeout(() => {
+        removeActiveEvent(newEvent.id);
+        if (ch) ch.send({ embeds: [{ color: 0x95a5a6, title: `${tpl.emoji} Event Berakhir`, description: `**${tpl.name}** telah berakhir.` }] }).catch(() => {});
+      }, durasi * 60_000);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `▶️ Template \`${tplId}\` dimulai!` }], flags: MessageFlags.Ephemeral });
+    }
+
+    // ── SHOP ──
+    if (cid === 'af_modal_shop_add') {
+      const shopData = getShopData();
+      const id = v('id').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30);
+      if (shopData.items.find(i => i.id === id)) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ ID sudah ada.' }], flags: MessageFlags.Ephemeral });
+      const tipe = v('tipe');
+      if (tipe === 'ticket' && !v('zona_id')) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Tipe ticket butuh zona_id.' }], flags: MessageFlags.Ephemeral });
+      const newItem = {
+        id, name: v('nama'), emoji: v('emoji'), description: v('deskripsi'),
+        type: tipe,
+        priceCoins: parseInt(v('harga_coins')) || 0,
+        priceGems: parseInt(v('harga_gems')) || 0,
+        stock: -1,
+      };
+      if (tipe === 'ticket') newItem.zonaId = v('zona_id');
+      shopData.items.push(newItem);
+      saveShopData(shopData);
+      logAction('Tambah Shop Item', id);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🛒 Item \`${id}\` ditambahkan!` }], flags: MessageFlags.Ephemeral });
+    }
+
+    if (cid === 'af_modal_shop_del') {
+      const shopData = getShopData();
+      const id = v('id');
+      const idx = shopData.items.findIndex(i => i.id === id);
+      if (idx === -1) return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Item tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+      shopData.items.splice(idx, 1);
+      saveShopData(shopData);
+      logAction('Hapus Shop Item', id);
+      return interaction.reply({ embeds: [{ color: 0x2ecc71, title: `🗑️ Item \`${id}\` dihapus.` }], flags: MessageFlags.Ephemeral });
+    }
+
+    return interaction.reply({ embeds: [{ color: 0xe74c3c, title: '❌ Modal handler tidak ditemukan.' }], flags: MessageFlags.Ephemeral });
+  } catch (e) {
+    console.error('[adminfishing] modal error:', e.message);
+    const isReplied = interaction.replied || interaction.deferred;
+    const errPayload = { embeds: [{ color: 0xe74c3c, title: '❌ Error', description: e.message?.slice(0, 500) }], flags: MessageFlags.Ephemeral };
+    if (isReplied) await interaction.editReply(errPayload);
+    else await interaction.reply(errPayload);
   }
 }
 
-
-export async function autocomplete(interaction) {
-  const focused = interaction.options.getFocused(true);
-  const sub = interaction.options.getSubcommand();
-
-  // ── Zona autocomplete ──
-  if (['addzonafish', 'removezonafish', 'delzona'].includes(sub)) {
-    const zonaData = getZonaData();
-
-    if (focused.name === 'zona_id') {
-      const choices = Object.values(zonaData.zonas)
-        .filter(z => z.id.includes(focused.value.toLowerCase()) || z.nama.toLowerCase().includes(focused.value.toLowerCase()))
-        .map(z => ({ name: `${z.emoji} ${z.nama} (${z.fish.length} ikan)`, value: z.id }));
-      return interaction.respond(choices.slice(0, 25));
-    }
-
-    if (sub === 'addzonafish' && focused.name.startsWith('ikan_')) {
-      const zonaId = interaction.options.getString('zona_id');
-      const zona = zonaId ? zonaData.zonas[zonaId] : null;
-      const { fish } = getFishData();
-
-      const selectedIds = [];
-      for (let i = 1; i <= 10; i++) {
-        const val = interaction.options.getString(`ikan_${i}`);
-        if (val && `ikan_${i}` !== focused.name) selectedIds.push(val);
-      }
-
-      const choices = fish
-        .filter(f => !selectedIds.includes(f.id))
-        .filter(f => zona ? !zona.fish.includes(f.id) : true)
-        .filter(f => f.name.toLowerCase().includes(focused.value.toLowerCase()) || f.id.includes(focused.value.toLowerCase()))
-        .map(f => ({ name: `${f.emoji} ${f.name} (${f.rarity})`, value: f.id }));
-      return interaction.respond(choices.slice(0, 25));
-    }
-
-    if (sub === 'removezonafish' && focused.name === 'fish_id') {
-      const zonaId = interaction.options.getString('zona_id');
-      const zona = zonaData.zonas[zonaId];
-      if (!zona) return interaction.respond([]);
-      const { fish } = getFishData();
-      const choices = zona.fish
-        .map(fid => fish.find(f => f.id === fid))
-        .filter(Boolean)
-        .filter(f => f.name.toLowerCase().includes(focused.value.toLowerCase()))
-        .map(f => ({ name: `${f.emoji} ${f.name}`, value: f.id }));
-      return interaction.respond(choices.slice(0, 25));
-    }
-
-    if (sub === 'delzona' && focused.name === 'id') {
-      const choices = Object.values(zonaData.zonas)
-        .filter(z => z.id.includes(focused.value.toLowerCase()) || z.nama.toLowerCase().includes(focused.value.toLowerCase()))
-        .map(z => ({ name: `${z.emoji} ${z.nama}`, value: z.id }));
-      return interaction.respond(choices.slice(0, 25));
-    }
-  }
-
-  // ── Fish autocomplete ──
-  if (sub === 'delfish') {
-    const { fish } = getFishData();
-    const choices = fish
-      .filter(f => f.id.includes(focused.value.toLowerCase()) || f.name.toLowerCase().includes(focused.value.toLowerCase()))
-      .map(f => ({ name: `${f.emoji} ${f.name} (${f.rarity})`, value: f.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // ── Rod autocomplete ──
-  if (sub === 'delrod') {
-    const { rods } = getRodData();
-    const choices = rods
-      .filter(r => r.id.includes(focused.value.toLowerCase()) || r.name.toLowerCase().includes(focused.value.toLowerCase()))
-      .map(r => ({ name: `${r.emoji} ${r.name}`, value: r.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // spawnfish zona_id autocomplete
-  if (sub === 'spawnfish' && focused.name === 'zona_id') {
-    const zonaData = getZonaData();
-    const choices = Object.values(zonaData.zonas)
-      .filter(z => z.id.includes(focused.value.toLowerCase()) || z.nama.toLowerCase().includes(focused.value.toLowerCase()))
-      .map(z => ({ name: `${z.emoji} ${z.nama}`, value: z.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // spawnfish fish_id autocomplete
-  if (sub === 'spawnfish' && focused.name === 'fish_id') {
-    const { fish } = getFishData();
-    const choices = fish
-      .filter(f => f.name.toLowerCase().includes(focused.value.toLowerCase()) || f.id.includes(focused.value.toLowerCase()))
-      .map(f => ({ name: `${f.emoji} ${f.name} (${f.rarity})`, value: f.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // setrestricted zona_id autocomplete
-  if (sub === 'setrestricted' && focused.name === 'zona_id') {
-    const zonaData = getZonaData();
-    const choices = Object.values(zonaData.zonas)
-      .filter(z => z.id.includes(focused.value.toLowerCase()) || z.nama.toLowerCase().includes(focused.value.toLowerCase()))
-      .map(z => ({ name: `${z.emoji} ${z.nama}${z.restricted ? ' 🔒' : ''}`, value: z.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // addshopitem zona_id autocomplete
-  if (sub === 'addshopitem' && focused.name === 'zona_id') {
-    const zonaData = getZonaData();
-    const choices = Object.values(zonaData.zonas)
-      .filter(z => z.id.includes(focused.value.toLowerCase()) || z.nama.toLowerCase().includes(focused.value.toLowerCase()))
-      .map(z => ({ name: `${z.emoji} ${z.nama}`, value: z.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  // delshopitem autocomplete
-  if (sub === 'delshopitem') {
-    const shopData = getShopData();
-    const choices = shopData.items
-      .filter(i => i.name.toLowerCase().includes(focused.value.toLowerCase()) || i.id.includes(focused.value.toLowerCase()))
-      .map(i => ({ name: `${i.emoji} ${i.name}`, value: i.id }));
-    return interaction.respond(choices.slice(0, 25));
-  }
-
-  await interaction.respond([]);
+function buildWeatherEventEmbed(event, remainingMs, stackPos) {
+  const multLines = RARITY_ORDER.map(r => {
+    const mult = event.rarityMultipliers?.[r] ?? 1;
+    const arrow = mult > 1 ? '⬆️' : mult < 1 ? '⬇️' : '➡️';
+    const pct = mult > 1 ? `(+${Math.round((mult-1)*100)}%)` : mult < 1 ? `(-${Math.round((1-mult)*100)}%)` : '';
+    return `${arrow} **${r}**: ×${mult} ${pct}`;
+  }).join('\n');
+  const luckText = event.luckMultiplyMode ? `×${event.luckMultiplier || 1}` : `+${event.luckBonus}%`;
+  return new EmbedBuilder()
+    .setColor(event.color || '#f39c12')
+    .setTitle(`${event.emoji} EVENT: ${event.name}`)
+    .setDescription(event.description)
+    .addFields(
+      { name: '⏱️ Durasi', value: `<t:${Math.floor((Date.now() + remainingMs) / 1000)}:R>`, inline: true },
+      { name: '🍀 Luck', value: luckText, inline: true },
+      { name: '📊 Stack', value: `${stackPos}/3`, inline: true },
+      { name: '📈 Rarity', value: multLines },
+    )
+    .setFooter({ text: `ID: ${event.id}` })
+    .setTimestamp();
 }

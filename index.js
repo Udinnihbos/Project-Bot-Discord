@@ -27,6 +27,8 @@ import {
   handleAnnouncePermissions,
 } from './commands/announce.js';
 import { startAnnounceScheduler } from './utils/announceScheduler.js';
+import { handleReactionRoleComponent, handleReactionRoleModal } from './commands/reactionrole.js';
+import { handleAdminFishingComponent, handleAdminFishingModal } from './commands/adminfishing.js';
 import { initDB } from './utils/db.js';
 
 // Initialize SQLite (auto-migrates from JSON on first run)
@@ -175,6 +177,16 @@ async function handleInteraction(interaction) {
   // Notifier (modals: nt_modal_*)
   if (interaction.isModalSubmit() && interaction.customId.startsWith('nt_modal_')) {
     return handleNotifierModal(interaction);
+  }
+  // Reaction Role V2 (admin component/modal: rr_modal_*, af_modal_*)
+  if (interaction.customId?.startsWith('rr_') && !interaction.customId.startsWith('rr_dropdown_') && !interaction.customId.startsWith('rr_btn_')) {
+    if (interaction.isModalSubmit()) return handleReactionRoleModal(interaction);
+    return handleReactionRoleComponent(interaction);
+  }
+  // Adminfishing V2 (af_* components and modals)
+  if (interaction.customId?.startsWith('af_')) {
+    if (interaction.isModalSubmit()) return handleAdminFishingModal(interaction);
+    return handleAdminFishingComponent(interaction);
   }
   // Announce V2 (components, modals, channel/role/select menus)
   if (interaction.customId && interaction.customId.startsWith('ann_')) {
